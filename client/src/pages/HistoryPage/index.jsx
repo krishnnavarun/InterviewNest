@@ -22,13 +22,56 @@ function HistoryPage() {
 
   const ITEMS_PER_PAGE = 8;
 
-  // TODO: Add useEffect to load paginated history using getHistory
+  useEffect(() => {
+    const loadHistory = async () => {
+      setLoading(true);
+      try {
+        const data = await getHistory(page, ITEMS_PER_PAGE);
+        setInterviews(data.entries);
+        setTotalPages(data.totalPages);
+        setTotalEntries(data.totalEntries);
+      } catch (error) {
+        toast.error('Failed to load history');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // TODO: Implement handleDelete - delete interview and update state
+    loadHistory();
+  }, [page]);
 
-  // TODO: Implement handleClearAll - clear all history with confirmation
+  const handleDelete = async (id) => {
+    try {
+      await deleteHistoryItem(id);
+      setInterviews((prev) => prev.filter((item) => item._id !== id));
+      setTotalEntries((prev) => prev - 1);
+      toast.success('Interview deleted');
+    } catch (error) {
+      toast.error('Failed to delete');
+    }
+  };
 
-  // TODO: Implement handleCardClick - navigate based on interview status
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to delete all interviews?'))
+      return;
+
+    try {
+      await clearHistory();
+      setInterviews([]);
+      setTotalEntries(0);
+      toast.success('All history cleared');
+    } catch (error) {
+      toast.error('Failed to clear history');
+    }
+  };
+
+  const handleCardClick = (interview) => {
+    if (interview.status === 'completed') {
+      navigate(`/feedback/${interview._id}`);
+    } else {
+      navigate(`/interview/${interview._id}`);
+    }
+  };
 
   return (
     <div className="history-page">

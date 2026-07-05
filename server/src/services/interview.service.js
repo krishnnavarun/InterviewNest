@@ -62,6 +62,157 @@ export const startInterview = async (userId, role, resumeText, candidateName, to
   };
 };
 
+export const submitAnswer = async (interviewId, userId, answerText) => {
+  const interview = await Interview.findOne({ _id: interviewId, userId });
+  if (!interview) throw new Error('Interview not found');
+  if (interview.status === 'completed') throw new Error('Interview already completed');
+
+  interview.messages.push({
+    role: 'candidate',
+    content: answerText,
+    timestamp: new Date(),
+  });
+
+  const nextQuestionIndex = interview.currentQuestion;
+  if (nextQuestionIndex >= interview.questions.length) {
+    interview.status = 'completed';
+    await interview.save();
+
+    const farewellText = 'Thank you for completing the interview! I really enjoyed our conversation. Let me prepare your detailed feedback report.';
+    let farewellAudio = null;
+    try {
+      farewellAudio = await generateAudio(farewellText);
+    } catch (audioError) {
+      console.error('Farewell audio failed:', audioError.message);
+    }
+
+    return { isComplete: true, message: farewellText, audio: farewellAudio };
+  }
+
+  const conversationHistory = buildConversationHistory(interview.messages);
+  const nextQuestion = interview.questions[nextQuestionIndex];
+
+  const followUpPrompt = FOLLOW_UP_PROMPT(interview.role, conversationHistory, nextQuestion.text);
+  const followUpResponse = await askGemini(followUpPrompt);
+
+  interview.messages.push({
+    role: 'interviewer',
+    content: followUpResponse,
+    timestamp: new Date(),
+  });
+
+  interview.currentQuestion += 1;
+  await interview.save();
+
+  const spokenText = `${followUpResponse} ... ${nextQuestion.text}`;
+  let audioBase64 = null;
+  try {
+    audioBase64 = await generateAudio(spokenText);
+  } catch (audioError) {
+    console.error('Audio generation failed, continuing without audio:', audioError.message);
+  }
+
+  interview.lastAudio = audioBase64 || '';
+  await interview.save();
+
+  return {
+    isComplete: false,
+    response: followUpResponse,
+    currentQuestion: interview.currentQuestion,
+    totalQuestions: interview.totalQuestions,
+    question: nextQuestion,
+    audio: audioBase64,
+  };
+};
+
+export const submitCode = async (interviewId, userId, code, language) => {
+  const interview = await Interview.findOne({ _id: interviewId, userId });
+  if (!interview) {
+    const error = new Error('Interview not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (interview.status === 'completed') {
+    const error = new Error('Interview already completed');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const questionIndex = interview.currentQuestion - 1;
+  const question = interview.questions[questionIndex];
+  const codeType = question.codeType || 'write';
+
+  const evalPrompt = EVALUATE_CODE_PROMPT(question.text, code, language, codeType);
+  const evalResponse = await askGemini(evalPrompt);
+  const evaluation = parseGeminiJSON(evalResponse);
+
+  interview.codeSubmissions.push({
+    questionIndex,
+    codeType,
+    code,
+    language,
+    evaluation,
+    timestamp: new Date(),
+  });
+
+  interview.messages.push({
+    role: 'candidate',
+    content: `[Code ${codeType} in ${language}] Score: ${evaluation.score}/100\n${code}`,
+    timestamp: new Date(),
+  });
+
+  const nextQuestionIndex = interview.currentQuestion;
+  if (nextQuestionIndex >= interview.questions.length) {
+    interview.status = 'completed';
+    await interview.save();
+
+    const farewellText = 'Thank you for completing the interview! I really enjoyed our conversation. Let me prepare your detailed feedback report.';
+    let farewellAudio = null;
+    try {
+      farewellAudio = await generateAudio(farewellText);
+    } catch (audioError) {
+      console.error('Farewell audio failed:', audioError.message);
+    }
+
+    return { evaluation, isComplete: true, audio: farewellAudio };
+  }
+
+  const conversationHistory = buildConversationHistory(interview.messages);
+  const nextQuestion = interview.questions[nextQuestionIndex];
+
+  const followUpPrompt = FOLLOW_UP_PROMPT(interview.role, conversationHistory, nextQuestion.text);
+  const followUpResponse = await askGemini(followUpPrompt);
+
+  interview.messages.push({
+    role: 'interviewer',
+    content: followUpResponse,
+    timestamp: new Date(),
+  });
+
+  interview.currentQuestion += 1;
+
+  const spokenText = `${followUpResponse} ... ${nextQuestion.text}`;
+  let audioBase64 = null;
+  try {
+    audioBase64 = await generateAudio(spokenText);
+  } catch (audioError) {
+    console.error('Audio generation failed:', audioError.message);
+  }
+
+  interview.lastAudio = audioBase64 || '';
+  await interview.save();
+
+  return {
+    evaluation,
+    isComplete: false,
+    response: followUpResponse,
+    currentQuestion: interview.currentQuestion,
+    totalQuestions: interview.totalQuestions,
+    question: nextQuestion,
+    audio: audioBase64,
+  };
+};
+
 export const endInterview = async (interviewId, userId) => {
   const interview = await Interview.findOne({ _id: interviewId, userId });
   if (!interview) {

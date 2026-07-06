@@ -13,23 +13,137 @@ function ConversationalMic({ onTranscriptReady, onAutoSubmit, disabled }) {
   const [recognition, setRecognition] = useState(null);
   const [silenceTimer, setSilenceTimer] = useState(null);
 
-  // TODO: Add useEffect to initialize SpeechRecognition with onresult, onerror, onend handlers
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setIsSupported(false);
+      return;
+    }
 
-  // TODO: Add useEffect to auto-start listening when recognition is ready
+    const recog = new SpeechRecognition();
+    recog.continuous = true;
+    recog.interimResults = true;
+    recog.lang = 'en-US';
 
-  // TODO: Implement clearSilenceTimer
+    let accumulated = '';
 
-  // TODO: Implement startSilenceTimer - auto-submit after SILENCE_TIMEOUT
+    recog.onresult = (event) => {
+      let interim = '';
+      let final = '';
 
-  // TODO: Implement startListening
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          final += transcript + ' ';
+        } else {
+          interim = transcript;
+        }
+      }
 
-  // TODO: Implement stopListening
+      if (final) {
+        accumulated = final.trim();
+        setFinalText(accumulated);
+      }
+      setLiveText(interim);
 
-  // TODO: Implement handleAutoSubmit
+      clearSilenceTimer();
+      startSilenceTimer(accumulated || interim);
+    };
 
-  // TODO: Implement handleManualSubmit
+    recog.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error === 'no-speech') {
+        return;
+      }
+      setIsListening(false);
+    };
 
-  // TODO: Implement handleRestart
+    recog.onend = () => {
+      setIsListening(false);
+    };
+
+    setRecognition(recog);
+
+    return () => {
+      recog.abort();
+      clearSilenceTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (recognition && isSupported && !disabled) {
+      startListening();
+    }
+  }, [recognition, isSupported, disabled]);
+
+  const clearSilenceTimer = () => {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      setSilenceTimer(null);
+    }
+    setAutoSubmitCountdown(null);
+  };
+
+  const startSilenceTimer = (currentText) => {
+    const timer = setTimeout(() => {
+      if (currentText && currentText.trim().length > 0) {
+        handleAutoSubmit(currentText.trim());
+      }
+    }, SILENCE_TIMEOUT);
+    setSilenceTimer(timer);
+
+    setAutoSubmitCountdown(3);
+    setTimeout(() => setAutoSubmitCountdown(2), 1000);
+    setTimeout(() => setAutoSubmitCountdown(1), 2000);
+  };
+
+  const startListening = () => {
+    if (!recognition) return;
+    try {
+      setLiveText('');
+      setFinalText('');
+      setAutoSubmitCountdown(null);
+      recognition.start();
+      setIsListening(true);
+    } catch (error) {
+      console.error('Recognition start error:', error.message);
+    }
+  };
+
+  const stopListening = () => {
+    if (!recognition) return;
+    try {
+      recognition.stop();
+    } catch (error) {
+      // Already stopped
+    }
+    setIsListening(false);
+    clearSilenceTimer();
+  };
+
+  const handleAutoSubmit = (text) => {
+    stopListening();
+    if (onAutoSubmit) {
+      onAutoSubmit(text);
+    }
+  };
+
+  const handleManualSubmit = () => {
+    const text = (finalText + ' ' + liveText).trim();
+    if (!text) return;
+    stopListening();
+    if (onAutoSubmit) {
+      onAutoSubmit(text);
+    }
+  };
+
+  const handleRestart = () => {
+    setLiveText('');
+    setFinalText('');
+    clearSilenceTimer();
+    startListening();
+  };
 
   const displayText = (finalText + ' ' + liveText).trim();
 

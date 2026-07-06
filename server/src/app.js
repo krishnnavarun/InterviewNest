@@ -53,6 +53,15 @@ app.use(express.json({ limit: '10mb' }));
 // /api/history   → interview history routes
 app.use('/api', routes);
 
+// Root route/health check
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: "InterviewNest API Server is running",
+    environment: process.env.NODE_ENV || "development"
+  });
+});
+
 // ============================================
 // ERROR HANDLING (must be AFTER routes)
 // ============================================

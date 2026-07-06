@@ -9,7 +9,9 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.DEV
+    ? 'http://localhost:5000/api'
+    : 'https://interview-nest-server.vercel.app/api',
 });
 
 // Attach JWT token to every request

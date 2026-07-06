@@ -26,18 +26,25 @@ const startServer = async () => {
     // Step 1: Connect to MongoDB (wait until connected)
     await connectDB();
 
-    // Step 2: Start listening for HTTP requests
-    app.listen(PORT, () => {
-      console.error(`\n Server is running on port ${PORT}`);
-      console.error(` Environment: ${process.env.NODE_ENV || "development"}`);
-      console.error(` URL: http://localhost:${PORT}\n`);
-    });
+    // Step 2: Start listening for HTTP requests (only locally, not on Vercel)
+    if (!process.env.VERCEL) {
+      app.listen(PORT, () => {
+        console.error(`\n Server is running on port ${PORT}`);
+        console.error(` Environment: ${process.env.NODE_ENV || "development"}`);
+        console.error(` URL: http://localhost:${PORT}\n`);
+      });
+    }
   } catch (error) {
-    // If anything fails, log the error and exit
+    // If anything fails, log the error and exit locally
     console.error("Failed to start server:", error.message);
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
   }
 };
 
 // Call the function to start everything
 startServer();
+
+// Export the app (used in Vercel's serverless handler)
+export default app;

@@ -20,7 +20,6 @@ const connectDB = async () => {
     // Connect to MongoDB
     // Mongoose 9.x handles connection options automatically
     const conn = await mongoose.connect(mongoURI);
-
     console.error(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`MongoDB Connection Error: ${error.message}`);

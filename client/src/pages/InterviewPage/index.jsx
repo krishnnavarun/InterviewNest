@@ -53,24 +53,194 @@ function InterviewPage() {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [interviewerText, setInterviewerText] = useState('');
   const [farewellMessage, setFarewellMessage] = useState('');
+  const [pendingResult, setPendingResult] = useState(null);
 
-  // TODO: Add useEffect to load interview data using getInterview(id)
+  useEffect(() => {
+    const loadInterview = async () => {
+      try {
+        const data = await getInterview(id);
+        if (data.status === 'completed') {
+          navigate(`/feedback/${id}`);
+          return;
+        }
 
-  // TODO: Implement handleAudioEnded - transition to listening state after audio finishes
+        setCurrentQuestionNum(data.currentQuestion);
+        setTotalQuestions(data.totalQuestions);
 
-  // TODO: Implement resetAnswerFields - clear text, code, evaluation, and fallback state
+        const qIdx = data.currentQuestion - 1;
+        const q = data.questions[qIdx];
+        setCurrentQuestion(q);
 
-  // TODO: Implement processAnswerResult - handle interview flow transitions (complete vs next question)
+        const interviewerMsgs = data.messages.filter((m) => m.role === 'interviewer');
+        if (interviewerMsgs.length > 0) {
+          const lastMsg = interviewerMsgs[interviewerMsgs.length - 1];
+          setInterviewerText(lastMsg.content);
+        } else {
+          setInterviewerText("Welcome! Let's get started with the interview.");
+        }
 
-  // TODO: Implement submitAndProcess - submit text answer and process the result
+        if (location.state?.audio) {
+          setCurrentAudio(location.state.audio);
+          setInterviewerState(STATE_SPEAKING);
+        } else if (data.lastAudio) {
+          setCurrentAudio(data.lastAudio);
+          setInterviewerState(STATE_SPEAKING);
+        } else {
+          setInterviewerState(STATE_LISTENING);
+        }
+      } catch (error) {
+        toast.error('Failed to load interview');
+        navigate('/');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // TODO: Implement handleRecordingComplete - transcribe audio blob then submit as text answer
+    loadInterview();
+  }, [id, navigate, location.state]);
 
-  // TODO: Implement handleSubmitText - validate and submit typed answer
+  const handleAudioEnded = () => {
+    setInterviewerState(STATE_LISTENING);
+  };
 
-  // TODO: Implement handleSubmitCode - evaluate code submission and process result
+  const resetAnswerFields = () => {
+    setTextAnswer('');
+    setCode('');
+    setCodeEvaluation(null);
+    setShowTextFallback(false);
+    setPendingResult(null);
+  };
 
-  // TODO: Implement handleEndInterview - end interview and navigate to feedback page
+  const processAnswerResult = async (result) => {
+    resetAnswerFields();
+
+    if (result.isComplete) {
+      setInterviewerState(STATE_FAREWELL);
+      const text =
+        result.message ||
+        'Thank you for completing the interview! I really enjoyed our conversation. Let me prepare your detailed feedback report.';
+      setFarewellMessage(text);
+      setInterviewerText(text);
+
+      if (result.audio) {
+        setCurrentAudio(result.audio);
+        setAudioKey((prev) => prev + 1);
+      }
+
+      try {
+        await endInterview(id);
+        toast.success('Interview completed successfully!');
+        setTimeout(() => {
+          navigate(`/feedback/${id}`);
+        }, 3000);
+      } catch (err) {
+        console.error('Failed to end interview:', err.message);
+        toast.error('Failed to generate interview feedback');
+      }
+    } else {
+      setCurrentQuestionNum(result.currentQuestion);
+      setTotalQuestions(result.totalQuestions);
+      setCurrentQuestion(result.question);
+      setInterviewerText(result.response);
+
+      if (result.audio) {
+        setCurrentAudio(result.audio);
+        setAudioKey((prev) => prev + 1);
+        setInterviewerState(STATE_SPEAKING);
+      } else {
+        setInterviewerState(STATE_LISTENING);
+      }
+    }
+  };
+
+  const submitAndProcess = async (answer) => {
+    setSubmitting(true);
+    setInterviewerState(STATE_THINKING);
+
+    try {
+      const result = await submitTextAnswer(id, answer);
+      await processAnswerResult(result);
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to submit answer';
+      toast.error(message);
+      setInterviewerState(STATE_LISTENING);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecordingComplete = async (audioBlob) => {
+    setSubmitting(true);
+    setInterviewerState(STATE_THINKING);
+
+    try {
+      const transcription = await transcribeAudio(audioBlob);
+      const text = transcription?.text;
+      if (!text || text.trim() === '') {
+        toast.error('Could not transcribe audio. Please type your answer or try again.');
+        setInterviewerState(STATE_LISTENING);
+        return;
+      }
+      await submitAndProcess(text);
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to transcribe audio';
+      toast.error(message);
+      setInterviewerState(STATE_LISTENING);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitText = async () => {
+    if (!textAnswer.trim()) return;
+    await submitAndProcess(textAnswer);
+  };
+
+  const handleSubmitCode = async () => {
+    const codeToSubmit = code || (currentQuestion.codeType === 'fix' ? currentQuestion.codeSnippet || '' : '');
+    if (!codeToSubmit.trim()) return;
+
+    setSubmitting(true);
+    setInterviewerState(STATE_THINKING);
+
+    try {
+      const result = await submitCode(
+        id,
+        codeToSubmit,
+        currentQuestion.codeLanguage || codeLanguage
+      );
+
+      setCodeEvaluation(result.evaluation);
+      setPendingResult(result);
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to evaluate code';
+      toast.error(message);
+      setInterviewerState(STATE_LISTENING);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEndInterview = async () => {
+    setEnding(true);
+    setInterviewerState(STATE_FAREWELL);
+    setFarewellMessage(
+      'Wrapping up the interview and generating your feedback report...'
+    );
+
+    try {
+      await endInterview(id);
+      toast.success('Interview completed!');
+      navigate(`/feedback/${id}`);
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to complete interview';
+      toast.error(message);
+      setInterviewerState(STATE_LISTENING);
+    } finally {
+      setEnding(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -80,7 +250,7 @@ function InterviewPage() {
       </div>
     );
   }
-
+  
   const isCodeQuestion = currentQuestion?.isCodeQuestion;
   const progressPercent = (currentQuestionNum / totalQuestions) * 100;
   const isSpeaking = interviewerState === STATE_SPEAKING;
@@ -320,149 +490,170 @@ function InterviewPage() {
 
                 {currentQuestion.codeType !== 'explain' ? (
                   <>
-                    <CodeEditor
-                      value={
-                        code ||
-                        (currentQuestion.codeType === 'fix'
-                          ? currentQuestion.codeSnippet || ''
-                          : '')
-                      }
-                      onChange={(val) => setCode(val || '')}
-                      language={currentQuestion.codeLanguage || codeLanguage}
-                    />
-                    <button
-                      className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
-                      onClick={handleSubmitCode}
-                      disabled={submitting || !code.trim()}
-                    >
-                      {submitting
-                        ? 'Evaluating...'
-                        : currentQuestion.codeType === 'fix'
-                        ? 'Submit Fixed Code'
-                        : 'Submit Solution'}
-                    </button>
+                    {!codeEvaluation && (
+                      <>
+                        <CodeEditor
+                          value={
+                            code ||
+                            (currentQuestion.codeType === 'fix'
+                              ? currentQuestion.codeSnippet || ''
+                              : '')
+                          }
+                          onChange={(val) => setCode(val || '')}
+                          language={currentQuestion.codeLanguage || codeLanguage}
+                        />
+                        <button
+                          className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
+                          onClick={handleSubmitCode}
+                          disabled={submitting || !code.trim()}
+                        >
+                          {submitting
+                            ? 'Evaluating...'
+                            : currentQuestion.codeType === 'fix'
+                            ? 'Submit Fixed Code'
+                            : 'Submit Solution'}
+                        </button>
+                      </>
+                    )}
                   </>
                 ) : (
                   <div className="explain-answer-block">
-                    <p className="explain-hint-text">
-                      Explain verbally what this code does, or type your
-                      explanation below.
-                    </p>
+                    {!codeEvaluation && (
+                      <>
+                        <p className="explain-hint-text">
+                          Explain verbally what this code does, or type your
+                          explanation below.
+                        </p>
 
-                    <div className="voice-block-area">
-                      {!submitting && (
-                        <VoiceRecorder
-                          onRecordingComplete={async (audioBlob) => {
-                            setSubmitting(true);
-                            setInterviewerState(STATE_THINKING);
-                            try {
-                              const data = await transcribeAudio(audioBlob);
-                              const text =
-                                data.text || 'Verbal explanation provided.';
-                              setCode(text);
-                              setTimeout(() => handleSubmitCode(), 100);
-                            } catch (error) {
-                              setCode('Verbal explanation provided.');
-                              setTimeout(() => handleSubmitCode(), 100);
-                            }
-                          }}
-                          disabled={submitting}
-                        />
-                      )}
-                      {submitting && (
-                        <div className="processing-indicator">
-                          <div
-                            className="spinner-border spinner-border-sm"
-                            role="status"
-                          />
-                          <p className="processing-text">
-                            Processing your explanation...
-                          </p>
+                        <div className="voice-block-area">
+                          {!submitting && (
+                            <VoiceRecorder
+                              onRecordingComplete={async (audioBlob) => {
+                                setSubmitting(true);
+                                setInterviewerState(STATE_THINKING);
+                                try {
+                                  const data = await transcribeAudio(audioBlob);
+                                  const text =
+                                    data.text || 'Verbal explanation provided.';
+                                  setCode(text);
+                                  setTimeout(() => handleSubmitCode(), 100);
+                                } catch (error) {
+                                  setCode('Verbal explanation provided.');
+                                  setTimeout(() => handleSubmitCode(), 100);
+                                }
+                              }}
+                              disabled={submitting}
+                            />
+                          )}
+                          {submitting && (
+                            <div className="processing-indicator">
+                              <div
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                              />
+                              <p className="processing-text">
+                                Processing your explanation...
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="text-fallback-block">
-                      <button
-                        className="text-fallback-toggle-btn"
-                        onClick={() => setShowTextFallback(!showTextFallback)}
-                      >
-                        <span className="text-fallback-toggle-label">
-                          <BsKeyboardFill className="text-fallback-icon" />
-                          {showTextFallback
-                            ? 'Hide'
-                            : 'Prefer typing your explanation?'}
-                        </span>
-                        <span
-                          className={
-                            showTextFallback
-                              ? 'toggle-arrow-open'
-                              : 'toggle-arrow-closed'
-                          }
-                        >
-                          &#9660;
-                        </span>
-                      </button>
-                      {showTextFallback && (
-                        <div className="text-answer-block">
-                          <textarea
-                            className={`text-answer-textarea ${submitting ? 'text-answer-textarea-disabled' : ''}`}
-                            placeholder="Type your explanation... What does this code do?"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value)}
-                            rows={4}
-                            disabled={submitting}
-                          />
+                        <div className="text-fallback-block">
                           <button
-                            className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
-                            onClick={handleSubmitCode}
-                            disabled={submitting || !code.trim()}
+                            className="text-fallback-toggle-btn"
+                            onClick={() => setShowTextFallback(!showTextFallback)}
                           >
-                            {submitting
-                              ? 'Evaluating...'
-                              : 'Submit Explanation'}
+                            <span className="text-fallback-toggle-label">
+                              <BsKeyboardFill className="text-fallback-icon" />
+                              {showTextFallback
+                                ? 'Hide'
+                                : 'Prefer typing your explanation?'}
+                            </span>
+                            <span
+                              className={
+                                showTextFallback
+                                  ? 'toggle-arrow-open'
+                                  : 'toggle-arrow-closed'
+                              }
+                            >
+                              &#9660;
+                            </span>
                           </button>
+                          {showTextFallback && (
+                            <div className="text-answer-block">
+                              <textarea
+                                className={`text-answer-textarea ${submitting ? 'text-answer-textarea-disabled' : ''}`}
+                                placeholder="Type your explanation... What does this code do?"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value)}
+                                rows={4}
+                                disabled={submitting}
+                              />
+                              <button
+                                className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
+                                onClick={handleSubmitCode}
+                                disabled={submitting || !code.trim()}
+                              >
+                                {submitting
+                                  ? 'Evaluating...'
+                                  : 'Submit Explanation'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
                 )}
 
                 {codeEvaluation && (
-                  <div
-                    className={
-                      codeEvaluation.isCorrect
-                        ? 'code-eval-block code-eval-correct'
-                        : 'code-eval-block code-eval-incorrect'
-                    }
-                  >
-                    <div className="code-eval-header">
-                      <span className="code-eval-status">
-                        {codeEvaluation.isCorrect ? (
-                          <>
-                            <BsCheckCircleFill className="code-eval-icon-correct" />
-                            Correct
-                          </>
-                        ) : (
-                          <>
-                            <BsXCircleFill className="code-eval-icon-incorrect" />
-                            Needs Improvement
-                          </>
-                        )}
-                      </span>
-                      <span className="code-eval-score">
-                        Score: {codeEvaluation.score}/100
-                      </span>
-                    </div>
-                    <p className="code-eval-feedback">
-                      {codeEvaluation.feedback}
-                    </p>
-                    {codeEvaluation.suggestions && (
-                      <p className="code-eval-suggestions">
-                        <strong>Tip:</strong> {codeEvaluation.suggestions}
+                  <>
+                    <div
+                      className={
+                        codeEvaluation.isCorrect
+                          ? 'code-eval-block code-eval-correct'
+                          : 'code-eval-block code-eval-incorrect'
+                      }
+                    >
+                      <div className="code-eval-header">
+                        <span className="code-eval-status">
+                          {codeEvaluation.isCorrect ? (
+                            <>
+                              <BsCheckCircleFill className="code-eval-icon-correct" />
+                              Correct
+                            </>
+                          ) : (
+                            <>
+                              <BsXCircleFill className="code-eval-icon-incorrect" />
+                              Needs Improvement
+                            </>
+                          )}
+                        </span>
+                        <span className="code-eval-score">
+                          Score: {codeEvaluation.score}/100
+                        </span>
+                      </div>
+                      <p className="code-eval-feedback">
+                        {codeEvaluation.feedback}
                       </p>
-                    )}
-                  </div>
+                      {codeEvaluation.suggestions && (
+                        <p className="code-eval-suggestions">
+                          <strong>Tip:</strong> {codeEvaluation.suggestions}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      className="submit-code-btn"
+                      style={{ marginTop: '1.5rem' }}
+                      onClick={() => {
+                        if (pendingResult) {
+                          processAnswerResult(pendingResult);
+                        }
+                      }}
+                    >
+                      Next Question
+                    </button>
+                  </>
                 )}
               </div>
             )}

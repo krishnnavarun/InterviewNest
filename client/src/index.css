@@ -1,0 +1,96 @@
+@import 'tailwindcss';
+
+/* Design tokens: a luminous white -> violet (#63e) backdrop with dark
+   plum-to-black "glass" surfaces on top of it. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --color-brand-50: #f4f0ff;
+  --color-brand-100: #e9e1ff;
+  --color-brand-200: #d3c4ff;
+  --color-brand-300: #b69dff;
+  --color-brand-400: #9368ff;
+  --color-brand-500: #6633ee;
+  --color-brand-600: #5a27d8;
+  --color-brand-700: #4a1eb4;
+  --color-brand-800: #3b1a8c;
+  --color-brand-900: #281363;
+
+  --color-plum-700: #4c2169;
+  --color-plum-800: #381953;
+  --color-plum-900: #22102f;
+
+  --color-ink-700: #2a2233;
+  --color-ink-800: #1b1522;
+  --color-ink-900: #120e17;
+  --color-ink-950: #0b0910;
+
+  --animate-fade-up: fade-up 0.5s ease-out both;
+  --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(1.7);
+      opacity: 0;
+    }
+  }
+}
+
+/* Dark glass surface used by the auth card, panels and the navbar. */
+@utility surface-dark {
+  background: linear-gradient(180deg, rgb(62 27 92 / 0.94) 0%, rgb(34 16 52 / 0.96) 42%, rgb(13 10 19 / 0.98) 100%);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  box-shadow:
+    0 30px 60px -20px rgb(40 12 80 / 0.55),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(18px);
+}
+
+/* Flatter dark surface for dense content (lists, transcripts). */
+@utility surface-ink {
+  background: linear-gradient(180deg, rgb(28 20 38 / 0.96), rgb(13 10 19 / 0.97));
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 24px 48px -24px rgb(40 12 80 / 0.5);
+  backdrop-filter: blur(16px);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply min-h-screen bg-white font-sans text-ink-950 antialiased;
+  }
+  ::selection {
+    background: rgb(102 51 238 / 0.35);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-400);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

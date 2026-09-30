@@ -5,10 +5,13 @@ import {
   ArrowLeft,
   BookOpen,
   CheckCircle2,
+  CircleAlert,
+  CircleX,
   Code2,
   Cpu,
   Lightbulb,
   Mic,
+  Printer,
   Quote,
   RotateCcw,
   ShieldCheck,
@@ -16,7 +19,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelHeader } from '@/components/ui/panel';
-import { PageLoader } from '@/components/ui/spinner';
+import { PageSkeleton } from '@/components/ui/skeleton';
+import { Page, Reveal } from '@/components/ui/motion';
 import { Badge } from '@/components/ui/badge';
 import { DimensionBars } from '@/components/charts/DimensionBars';
 import { ScoreRing } from '@/components/report/ScoreRing';
@@ -42,6 +46,13 @@ export default function ReportPage() {
   const location = useLocation();
   const [interview, setInterview] = useState(location.state?.interview?.report ? location.state.interview : null);
 
+  // Use the hand-off snapshot once, then drop it from history so a reload
+  // fetches the latest data (e.g. answer coaching generated since).
+  useEffect(() => {
+    if (location.state?.interview) navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (interview) return;
     interviewApi
@@ -60,18 +71,25 @@ export default function ReportPage() {
       });
   }, [id, interview, navigate]);
 
-  if (!interview) return <PageLoader label="Loading your report..." />;
+  if (!interview) return <PageSkeleton label="Loading your report..." />;
 
   const { report } = interview;
-  const signal = HIRING_SIGNALS[report.hiringSignal];
+  const signal = HIRING_SIGNALS[report.hiringSignal] ?? { label: 'No verdict', tone: 'neutral' };
+  // The icon must match the verdict: a check mark on "no hire" reads as a pass.
+  const SignalIcon = { green: CheckCircle2, amber: CircleAlert, red: CircleX }[signal.tone] ?? CircleAlert;
   const dimensionItems = Object.entries(report.dimensions).map(([key, value]) => ({ id: key, label: DIMENSIONS[key], value }));
   const submission = interview.coding?.submission;
 
   return (
-    <div className="animate-fade-up space-y-6">
-      <Link to="/history" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-ink-950">
-        <ArrowLeft className="size-4" /> All interviews
-      </Link>
+    <Page className="report-page space-y-6">
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <Link to="/history" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-ink-950">
+          <ArrowLeft className="size-4" /> All interviews
+        </Link>
+        <Button variant="ink" size="sm" onClick={() => window.print()}>
+          <Printer className="size-3.5" /> Save as PDF
+        </Button>
+      </div>
 
       <Panel tone="plum" className="p-6 sm:p-8">
         <div className="flex flex-col gap-8 md:flex-row md:items-center">
@@ -79,7 +97,7 @@ export default function ReportPage() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={signal.tone}>
-                <CheckCircle2 className="size-3.5" /> {signal.label}
+                <SignalIcon className="size-3.5" aria-hidden="true" /> {signal.label}
               </Badge>
               {report.partial && (
                 <Badge tone="amber">
@@ -90,14 +108,14 @@ export default function ReportPage() {
                 {interview.roleTitle} · {interview.difficultyLabel}
               </Badge>
             </div>
-            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{report.headline}</h1>
+            <h1 className="mt-4 text-xl leading-snug font-bold tracking-tight sm:text-2xl">{report.headline}</h1>
             <p className="mt-3 leading-relaxed text-white/70">{report.summary}</p>
             <p className="mt-4 text-xs text-white/40">{formatDate(interview.completedAt, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
         </div>
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
+      <Reveal className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
         <Panel className="p-5 sm:p-6">
           <PanelHeader title="Skill breakdown" description="Computed from rubric scores - the AI does not pick these numbers" />
           <DimensionBars className="mt-6" items={dimensionItems} />
@@ -122,8 +140,9 @@ export default function ReportPage() {
             ))}
           </ul>
         </Panel>
-      </div>
+      </Reveal>
 
+      <Reveal>
       <Panel className="p-5 sm:p-6">
         <PanelHeader title="What to improve" description="Each point cites where it showed up in your interview" />
         <ul className="mt-5 grid gap-4 md:grid-cols-2">
@@ -142,8 +161,9 @@ export default function ReportPage() {
           ))}
         </ul>
       </Panel>
+      </Reveal>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <Reveal className="grid gap-6 lg:grid-cols-2">
         {report.speech ? (
           <Panel className="p-5 sm:p-6">
             <PanelHeader title="How you sounded" description={`From ${report.speech.answers} voice answer${report.speech.answers === 1 ? '' : 's'}`} />
@@ -205,8 +225,9 @@ export default function ReportPage() {
             </>
           )}
         </Panel>
-      </div>
+      </Reveal>
 
+      <Reveal>
       <Panel tone="plum" className="p-5 sm:p-6">
         <PanelHeader title="Your study plan" description="Prioritised by your weakest skills" />
         <ol className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -222,15 +243,22 @@ export default function ReportPage() {
           ))}
         </ol>
       </Panel>
+      </Reveal>
 
       <Panel className="p-5 sm:p-6">
-        <PanelHeader title="Topic by topic" description="Rubric scores, the evidence behind them, and why the interviewer asked each follow-up" />
+        <PanelHeader title="Topic by topic" description="Rubric scores, the evidence behind them, why the interviewer asked each follow-up - and a coach for every answer" />
         <div className="mt-5">
-          <TopicBreakdown topics={interview.topics} turns={interview.turns} topicScores={report.topicScores} />
+          <TopicBreakdown
+            interviewId={interview.id}
+            topics={interview.topics}
+            turns={interview.turns}
+            topicScores={report.topicScores}
+            coaching={interview.coaching}
+          />
         </div>
       </Panel>
 
-      <Panel className="flex flex-wrap items-center justify-between gap-4 p-5">
+      <Panel className="flex flex-wrap items-center justify-between gap-4 p-5 print:hidden">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/50">
           <span className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-emerald-300" /> {report.grounding.verifiedQuotes} evidence quotes verified
@@ -250,6 +278,6 @@ export default function ReportPage() {
           </Button>
         </div>
       </Panel>
-    </div>
+    </Page>
   );
 }

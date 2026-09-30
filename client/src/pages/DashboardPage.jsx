@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowRight, Award, BarChart3, Crosshair, FileText, Gauge, Mic, PlayCircle, Target, TrendingUp } from 'lucide-react';
+import { ArrowRight, Award, BarChart3, Crosshair, Dumbbell, FileText, Gauge, MessagesSquare, Mic, PlayCircle, Target, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelHeader } from '@/components/ui/panel';
-import { PageLoader } from '@/components/ui/spinner';
+import { PageSkeleton } from '@/components/ui/skeleton';
+import { Page, Stagger, StaggerItem, motion } from '@/components/ui/motion';
 import { Badge } from '@/components/ui/badge';
 import { StatTile } from '@/components/charts/StatTile';
 import { ScoreTrendChart } from '@/components/charts/ScoreTrendChart';
@@ -36,18 +37,18 @@ export default function DashboardPage() {
       });
   }, []);
 
-  if (!data) return <PageLoader label="Loading your dashboard..." />;
+  if (!data) return <PageSkeleton label="Loading your dashboard..." />;
 
   const { stats, series, dimensionAverages, weakAreas, usage, inProgress } = data;
   const isNew = stats.completed === 0;
   const dimensionItems = Object.entries(dimensionAverages).map(([id, value]) => ({ id, label: DIMENSIONS[id], value }));
 
   return (
-    <div className="animate-fade-up space-y-6">
+    <Page className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-brand-600">{greeting()}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">{firstName(user?.name)}, ready to practise?</h1>
+          <p className="text-eyebrow text-brand-600">{greeting()}</p>
+          <h1 className="text-title mt-1.5 text-ink-950">{firstName(user?.name)}, ready to practise?</h1>
         </div>
         <Button variant="ink" size="lg" onClick={() => navigate('/interview/new')}>
           Start new interview <ArrowRight className="size-4" />
@@ -100,15 +101,59 @@ export default function DashboardPage() {
         </Panel>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatTile label="Interviews completed" value={stats.completed} icon={BarChart3} />
-            <StatTile label="Average score" value={stats.averageScore} suffix="/100" icon={Gauge} />
-            <StatTile label="Best score" value={stats.bestScore} suffix="/100" icon={Award} />
-            <StatTile label="Latest score" value={stats.lastScore} suffix="/100" delta={stats.trend} deltaLabel="over last 5" icon={TrendingUp} />
+          <Stagger className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StaggerItem>
+              <StatTile label="Interviews completed" value={stats.completed} icon={BarChart3} />
+            </StaggerItem>
+            <StaggerItem>
+              <StatTile label="Average score" value={stats.averageScore} suffix="/100" icon={Gauge} />
+            </StaggerItem>
+            <StaggerItem>
+              <StatTile label="Best score" value={stats.bestScore} suffix="/100" icon={Award} />
+            </StaggerItem>
+            <StaggerItem>
+              <StatTile label="Latest score" value={stats.lastScore} suffix="/100" delta={stats.trend} deltaLabel="over last 5" icon={TrendingUp} />
+            </StaggerItem>
+          </Stagger>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {[
+              {
+                to: '/practice',
+                icon: Dumbbell,
+                title: 'Practise your weakest skill',
+                text: weakAreas[0] ? `A 5-minute drill on ${weakAreas[0].label}, graded instantly.` : 'A 5-minute drill, graded instantly against a rubric.',
+              },
+              {
+                to: '/coach',
+                icon: MessagesSquare,
+                title: 'Ask your AI coach',
+                text: 'Get answers from your own interview history, with sources.',
+              },
+            ].map(({ to, icon: Icon, title, text }) => (
+              <motion.button
+                key={to}
+                onClick={() => navigate(to)}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.99 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 24 }}
+                className="surface-dark flex cursor-pointer items-center gap-4 rounded-2xl p-5 text-left text-white"
+              >
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-ink-950">
+                  <Icon className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="text-heading block">{title}</span>
+                  <span className="text-caption text-white/55">{text}</span>
+                </span>
+                <ArrowRight className="size-4 shrink-0 text-white/50" />
+              </motion.button>
+            ))}
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-            <Panel className="p-5 sm:p-6">
+          {/* minmax(0, ...) lets the chart shrink with the viewport instead of widening the grid. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <Panel className="min-w-0 p-5 sm:p-6">
               <PanelHeader title="Overall score over time" description="Each point is one completed interview" />
               <div className="mt-5">
                 <ScoreTrendChart points={series} />
@@ -121,7 +166,7 @@ export default function DashboardPage() {
             </Panel>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr] lg:items-start">
             <Panel tone="plum" className="p-5 sm:p-6">
               <PanelHeader title="Focus next" description="Your next interview will re-test these" />
               {weakAreas.length ? (
@@ -135,9 +180,14 @@ export default function DashboardPage() {
                         </span>
                         <span className="text-sm text-white/60 tabular-nums">avg {area.average}</span>
                       </div>
-                      {area.note && <p className="mt-2 text-sm text-white/55">{area.note}</p>}
                     </li>
                   ))}
+                  {/* The note is the top improvement from the latest report - not specific to one skill. */}
+                  {weakAreas.find((area) => area.note) && (
+                    <li className="text-sm text-white/55">
+                      <span className="text-white/75">From your last report:</span> {weakAreas.find((area) => area.note).note}
+                    </li>
+                  )}
                 </ul>
               ) : (
                 <p className="mt-5 text-sm text-white/60">No weak areas right now - every skill averages 65 or more. Try Advanced difficulty.</p>
@@ -187,6 +237,6 @@ export default function DashboardPage() {
           Today: {usage.interviewsStarted}/{usage.interviewLimit} interviews · {usage.aiCalls} AI calls · {usage.tokens.toLocaleString()} tokens
         </p>
       )}
-    </div>
+    </Page>
   );
 }

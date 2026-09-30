@@ -28,6 +28,10 @@ export function errorHandler(error, req, res, next) {
   } else if (error instanceof mongoose.Error.CastError) {
     status = 404;
     message = 'Not found.';
+  } else if (error?.name === 'MongooseServerSelectionError' || error?.name === 'MongoNetworkError') {
+    // Database unreachable (e.g. Atlas IP access list, network outage).
+    status = 503;
+    message = 'Our database is temporarily unreachable. Please try again in a minute.';
   } else if (error?.type === 'entity.too.large') {
     status = 413;
     message = 'Request is too large.';
@@ -36,7 +40,8 @@ export function errorHandler(error, req, res, next) {
     message = 'Invalid JSON body.';
   }
 
-  if (status >= 500) console.error('[error]', req.method, req.originalUrl, error.cause ?? error);
+  if (status === 503) console.error('[error]', req.method, req.originalUrl, error.name, String(error.message).slice(0, 160));
+  else if (status >= 500) console.error('[error]', req.method, req.originalUrl, error.cause ?? error);
 
   res.status(status).json({ success: false, message, ...(details ? { details } : {}) });
 }

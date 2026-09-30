@@ -55,6 +55,8 @@ const interviewSchema = new mongoose.Schema(
     },
 
     report: Mixed,
+    coaching: { type: Mixed, default: {} }, // topicId -> answer coach result
+    indexedAt: Date, // when this interview was embedded for the career coach
     overallScore: Number,
     dimensionScores: Mixed,
     aiStats: {

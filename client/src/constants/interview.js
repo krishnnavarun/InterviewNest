@@ -41,6 +41,7 @@ export const HIRING_SIGNALS = {
   lean_hire: { label: 'Lean hire', tone: 'amber' },
   lean_no_hire: { label: 'Lean no hire', tone: 'amber' },
   no_hire: { label: 'Not yet', tone: 'red' },
+  incomplete: { label: 'Too short to judge', tone: 'neutral' },
 };
 
 export const ACTION_LABELS = {

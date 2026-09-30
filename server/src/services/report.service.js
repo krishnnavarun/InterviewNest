@@ -75,7 +75,15 @@ export async function buildReport(interview, context) {
 
   const { data: narrative } = await generateJSON({
     feature: 'report',
-    ...reportPrompt({ roleTitle: interview.roleTitle, scores, topicSummaries, coding: codingSummary, speech, partial }),
+    ...reportPrompt({
+      roleTitle: interview.roleTitle,
+      difficultyLabel: interview.difficultyLabel,
+      scores,
+      topicSummaries,
+      coding: codingSummary,
+      speech,
+      partial,
+    }),
     schema: ReportNarrativeSchema,
     temperature: 0.4,
     thinking: 'low',
@@ -86,7 +94,8 @@ export async function buildReport(interview, context) {
   return {
     ...narrative,
     overall: scores.overall,
-    hiringSignal: hiringSignal(scores.overall),
+    // A verdict needs evidence: with under half the topics covered, don't pretend to have one.
+    hiringSignal: covered.length / topics.length < 0.5 ? 'incomplete' : hiringSignal(scores.overall),
     dimensions: scores.dimensions,
     topicScores: scores.topics,
     speech,

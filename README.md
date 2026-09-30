@@ -17,11 +17,15 @@ Upload your resume, pick a role (optionally paste a job description), and talk t
 | **Verified coding problems** | The LLM writes a problem, hidden tests and a reference solution. The reference runs in a sandbox (worker thread + isolated `vm` context, memory/CPU limits) and only tests it agrees with are kept. |
 | **Grounded code review** | Candidate code runs in the browser (JavaScript in a Web Worker, Python via Pyodide/WebAssembly). The AI reviewer receives the *executed* results and its correctness score must agree with them. |
 | **Deterministic scoring** | The LLM only produces per-criterion 1-5 scores. Dimension and overall scores are computed in code, so the same evaluations always produce the same numbers. |
+| **Answer coach (fact-guarded)** | For every answered topic, the AI rewrites the candidate's *own* answer so it would score higher. A fact guard compares every number in the rewrite with what the candidate said (20k = 20,000) and replaces invented ones with `[metric]` placeholders. A second check scores each sentence's content-word overlap with the answer and resume, and the UI underlines sentences the candidate never said (e.g. an invented trade-off) so they can't be repeated as fact. |
+| **Practice drills** | One targeted question aimed at the weakest skill dimension, graded instantly by the same rubric + evidence-grounding engine. |
+| **RAG career coach** | Completed interviews are chunked (per topic, coding round, report) and embedded with `gemini-embedding-001` (768-d, document/query task types). Questions are answered from the top cosine matches with numbered citations that are validated server-side and link back to the source report. |
 | **Personalisation & memory** | Resume -> structured profile; JD -> gap analysis; weak dimensions from past interviews are re-tested in the next plan. |
 | **Speech analytics** | Word-level timestamps from speech-to-text give words-per-minute, filler words and long pauses. Resume skills are passed as custom vocabulary so terms like "Kubernetes" transcribe correctly. |
 | **Structured output + self-repair** | Every LLM response is constrained by a JSON Schema generated from Zod, validated again, and re-prompted once with the exact validation errors if it fails. |
-| **Model failover + circuit breaker** | Transient errors (503 overload, 429, timeouts) are retried once, then the request fails over through a chain of Gemini models. A failing model is skipped for 3 minutes so users don't pay its timeout on every turn. |
+| **Model failover + circuit breaker** | Transient errors (503 overload, 429, timeouts) are retried once, then the request fails over through a chain of Gemini models. A failing model is skipped for 3 minutes (30 minutes after a quota error) so users don't pay its timeout on every turn. |
 | **Cost & observability** | Per-call latency/token logging, per-interview AI stats, per-user daily quotas, rate limiting. |
+| **Calibrated verdicts** | The hiring signal comes from the computed score, and an interview that covered less than half its topics is marked "too short to judge" instead of "no hire". The report narrative is judged against the chosen difficulty and never gives voice or body-language tips for typed answers. |
 | **Offline evals** | `npm run eval:judge` measures grader agreement with human-labelled answers (MAE, correlation, injection detection, grounding). `npm run eval:coding` measures test-case verification rate. |
 
 ## Architecture
@@ -42,7 +46,9 @@ flowchart LR
         CODE[Coding service]
         SANDBOX["Sandbox<br/>worker_threads + vm"]
         REPORT["Scoring + report"]
-        LLM["Gemini wrapper<br/>schema, retries, usage"]
+        COACH["Answer coach<br/>+ fact guard"]
+        RAG["Career coach<br/>embeddings + cosine top-k"]
+        LLM["Gemini wrapper<br/>schema, failover, usage"]
     end
 
     DB[(MongoDB)]
@@ -59,6 +65,8 @@ flowchart LR
     CODE --> SANDBOX
     RUN -- executed outputs --> CODE
     REPORT --> LLM
+    COACH --> LLM
+    RAG --> LLM
     UI -- speak turn --> TTS
     API <--> DB
 ```
@@ -76,10 +84,17 @@ The coding problem is generated **in the background while the candidate is still
 
 ## Tech stack
 
-- **Frontend:** React 19, Vite, Tailwind CSS v4, React Router, Monaco Editor, Web Workers, Pyodide, lucide-react
+- **Frontend:** React 19, Vite, Tailwind CSS v4, Motion (animations, reduced-motion aware), React Router, Monaco Editor, Web Workers, Pyodide, lucide-react
 - **Backend:** Node.js, Express 5, MongoDB/Mongoose, Zod, JWT, express-rate-limit, Helmet
-- **AI:** Google Gemini (`@google/genai`, JSON-schema structured output), AssemblyAI (speech-to-text), Murf (text-to-speech)
-- **Testing:** `node:test` unit tests, LLM eval harness
+- **AI:** Google Gemini (`@google/genai`, JSON-schema structured output, embeddings for retrieval), AssemblyAI (speech-to-text), Murf (text-to-speech)
+- **Testing:** `node:test` unit tests, LLM eval harness, end-to-end runs in Chrome via the Chrome DevTools MCP
+
+## Quality
+
+- **Accessibility, best practices and SEO:** Lighthouse scored 100 in each category on every page (landing, login, signup, dashboard, setup, interview room, report, practice, AI coach, history). Public pages were audited on mobile, signed-in pages on desktop.
+- **Performance budget:** the animation library's feature bundle loads lazily (`LazyMotion`), and vendor code is split into long-lived chunks, giving about 163 KB of gzipped JavaScript on first load.
+- **Resilience:** if the database is unreachable the API returns a clear 503 instead of a crash. A failed turn shows a Retry banner that resubmits without duplicating the answer. Reloading mid-interview restores the room from the server.
+- **Responsive:** tested at 375px with no horizontal scrolling on any page.
 
 ## Getting started
 
@@ -143,12 +158,12 @@ The eval also caught a bug in the grounding guardrail: the grader often stitches
 ```
 server/
   src/ai/          Gemini wrapper, Zod schemas, prompts, prompt-injection helpers
-  src/lib/         Pure logic: scoring, grounding, policy, speech metrics, sandbox
+  src/lib/         Pure logic: scoring, grounding, policy, speech metrics, sandbox, fact guard, vector search
   src/services/    Interview orchestration, planner, coding, report, speech, TTS, usage
   test/            Unit tests
   evals/           Labelled dataset + eval scripts
 client/
-  src/pages/       Login, Signup, Dashboard, Setup, Interview room, Report, History
+  src/pages/       Landing, Login, Signup, Dashboard, Setup, Interview room, Report, Practice, AI Coach, History
   src/components/  UI primitives (shadcn-style), interview room, charts, report
   src/workers/     In-browser code runners (JavaScript, Python)
 ```

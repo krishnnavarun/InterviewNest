@@ -13,6 +13,7 @@
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.48.0",
+    "motion": "^13.4.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hot-toast": "^2.6.1",

@@ -18,6 +18,7 @@ import { AppError } from '../lib/AppError.js';
 
 const ATTEMPTS_PER_MODEL = 2;
 const BREAKER_COOLDOWN_MS = 3 * 60 * 1000;
+const QUOTA_COOLDOWN_MS = 30 * 60 * 1000;
 const TRANSIENT_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const TRANSIENT_MESSAGE =
   /UNAVAILABLE|RESOURCE_EXHAUSTED|DEADLINE_EXCEEDED|high demand|overloaded|timed? ?out|aborted|fetch failed|ECONNRESET|socket hang up/i;
@@ -229,7 +230,12 @@ export async function generateJSON({
       return result;
     } catch (error) {
       lastError = error;
-      if (isTransient(error)) breakerOpenUntil.set(model, Date.now() + BREAKER_COOLDOWN_MS);
+      if (isTransient(error)) {
+        // An exhausted daily/per-minute quota will not recover in minutes like an
+        // overload spike does, so keep that model out of rotation for longer.
+        const cooldown = /quota/i.test(String(error?.message)) ? QUOTA_COOLDOWN_MS : BREAKER_COOLDOWN_MS;
+        breakerOpenUntil.set(model, Date.now() + cooldown);
+      }
       console.warn(`[ai] ${feature} failed on ${model}: ${String(error.message).slice(0, 160)}`);
       // Try the next model for overload, timeouts, unsupported settings or bad output.
     }
@@ -244,4 +250,40 @@ export async function generateJSON({
     throw new AppError(503, 'The AI is under heavy load right now. Please try again in a moment.', { cause: lastError });
   }
   throw new AppError(502, 'The AI service could not complete this request. Please try again.', { cause: lastError });
+}
+
+// ---------------------------------------------------------------------------
+// Embeddings (used by the RAG career coach)
+// ---------------------------------------------------------------------------
+
+export const EMBEDDING_DIMENSIONS = 768;
+
+/**
+ * Embed texts with Gemini. Documents and queries use different task types so
+ * retrieval quality is better than embedding everything the same way.
+ * @param {string[]} texts
+ * @param {'RETRIEVAL_DOCUMENT'|'RETRIEVAL_QUERY'} taskType
+ * @returns {Promise<number[][]>}
+ */
+export async function embedTexts(texts, taskType, context = {}) {
+  if (texts.length === 0) return [];
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const startedAt = Date.now();
+    try {
+      const response = await getClient().models.embedContent({
+        model: env.GEMINI_EMBEDDING_MODEL,
+        contents: texts,
+        config: { taskType, outputDimensionality: EMBEDDING_DIMENSIONS, httpOptions: { timeout: 20000 } },
+      });
+      report({ feature: 'embedding', model: env.GEMINI_EMBEDDING_MODEL, attempt, latencyMs: Date.now() - startedAt, ok: true, ...context });
+      return response.embeddings.map((embedding) => embedding.values);
+    } catch (error) {
+      lastError = error;
+      report({ feature: 'embedding', model: env.GEMINI_EMBEDDING_MODEL, attempt, latencyMs: Date.now() - startedAt, ok: false, ...context });
+      if (!isTransient(error)) break;
+      await sleep(600 * attempt);
+    }
+  }
+  throw new AppError(503, 'The AI search index is unavailable right now. Please try again.', { cause: lastError });
 }

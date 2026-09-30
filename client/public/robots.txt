@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /interview/
+Disallow: /practice
+Disallow: /coach
+Disallow: /history

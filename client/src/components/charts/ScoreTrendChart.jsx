@@ -13,14 +13,16 @@ const TICKS = [0, 25, 50, 75, 100];
 
 export function ScoreTrendChart({ points }) {
   const containerRef = useRef(null);
-  const [width, setWidth] = useState(600);
+  // Start small and grow to the measured width; starting wide would stretch a
+  // narrow (mobile) container before the ResizeObserver reports its real size.
+  const [width, setWidth] = useState(240);
   const [active, setActive] = useState(null);
   const [showTable, setShowTable] = useState(false);
 
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(280, entry.contentRect.width)));
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(240, entry.contentRect.width)));
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -58,12 +60,12 @@ export function ScoreTrendChart({ points }) {
 
   return (
     <div>
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative w-full min-w-0 overflow-hidden">
         <svg
           width={width}
           height={HEIGHT}
           role="img"
-          aria-label={`Overall score across ${points.length} interviews, latest ${last?.overall ?? 0}. Use arrow keys to inspect.`}
+          aria-label={`Overall score across ${points.length} ${points.length === 1 ? 'interview' : 'interviews'}, latest ${last?.overall ?? 0}. Use arrow keys to inspect.`}
           tabIndex={0}
           onPointerMove={handlePointer}
           onPointerLeave={() => setActive(null)}

@@ -4,7 +4,9 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, ArrowRight, Check, FileUp, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelHeader } from '@/components/ui/panel';
-import { PageLoader, Spinner } from '@/components/ui/spinner';
+import { Spinner } from '@/components/ui/spinner';
+import { PageSkeleton } from '@/components/ui/skeleton';
+import { AnimatePresence, EASE, Overlay, Page, motion } from '@/components/ui/motion';
 import { Toggle } from '@/components/ui/toggle';
 import { Badge } from '@/components/ui/badge';
 import { ProfileCard } from '@/components/setup/ProfileCard';
@@ -12,6 +14,7 @@ import { GapCard } from '@/components/setup/GapCard';
 import { interviewApi, progressApi, resumeApi } from '@/lib/services';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useServerFeatures } from '@/hooks/useServerFeatures';
 import { DIFFICULTIES, ROLES, getRole } from '@/constants/interview';
 
 const PLANNING_STAGES = [
@@ -51,15 +54,16 @@ function StepIndicator({ step }) {
   );
 }
 
-function PlanningOverlay() {
+function PlanningOverlay({ open }) {
   const [stage, setStage] = useState(0);
   useEffect(() => {
+    if (!open) return setStage(0);
     const timer = setInterval(() => setStage((value) => Math.min(value + 1, PLANNING_STAGES.length - 1)), 2600);
     return () => clearInterval(timer);
-  }, []);
+  }, [open]);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/60 p-4 backdrop-blur-sm" role="status" aria-live="polite">
-      <Panel tone="plum" className="w-full max-w-md p-8 text-center">
+    <Overlay open={open} label="Designing your interview">
+      <Panel tone="plum" className="w-full p-8 text-center" role="status" aria-live="polite">
         <span className="relative mx-auto grid size-16 place-items-center">
           <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand-400/40" />
           <span className="relative grid size-16 place-items-center rounded-full border border-white/15 bg-white/10">
@@ -82,12 +86,13 @@ function PlanningOverlay() {
           ))}
         </ul>
       </Panel>
-    </div>
+    </Overlay>
   );
 }
 
 export default function SetupPage() {
   const navigate = useNavigate();
+  const features = useServerFeatures();
   const fileInput = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -95,6 +100,7 @@ export default function SetupPage() {
   const [resume, setResume] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const [weakAreas, setWeakAreas] = useState([]);
 
   const [role, setRole] = useState('');
@@ -120,8 +126,9 @@ export default function SetupPage() {
 
   const handleFile = async (file) => {
     if (!file) return;
-    if (file.type !== 'application/pdf') return toast.error('Please upload a PDF file.');
-    if (file.size > 5 * 1024 * 1024) return toast.error('Please upload a PDF under 5 MB.');
+    setUploadError(null);
+    if (file.type !== 'application/pdf') return setUploadError('Please upload a PDF file.');
+    if (file.size > 5 * 1024 * 1024) return setUploadError('Please upload a PDF under 5 MB.');
     setUploading(true);
     try {
       const saved = await resumeApi.upload(file);
@@ -130,7 +137,7 @@ export default function SetupPage() {
       if (saved.profile.suggestedRoleIds?.[0]) setRole(saved.profile.suggestedRoleIds[0]);
       toast.success('Resume analysed!');
     } catch (error) {
-      toast.error(errorMessage(error));
+      setUploadError(errorMessage(error));
     } finally {
       setUploading(false);
     }
@@ -166,23 +173,33 @@ export default function SetupPage() {
     }
   };
 
-  if (loading) return <PageLoader label="Loading your profile..." />;
+  if (loading) return <PageSkeleton label="Loading your profile..." />;
 
   const suggested = new Set(resume?.profile?.suggestedRoleIds ?? []);
   const difficultyInfo = DIFFICULTIES.find((item) => item.id === difficulty);
 
   return (
-    <div className="mx-auto max-w-4xl animate-fade-up space-y-6">
-      {starting && <PlanningOverlay />}
+    <Page className="mx-auto max-w-4xl space-y-6">
+      <PlanningOverlay open={starting} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-ink-950">New interview</h1>
+          <p className="text-eyebrow text-brand-600">Set up</p>
+          <h1 className="text-title mt-1 text-ink-950">New interview</h1>
           <p className="mt-1 text-ink-700">The AI builds a personal interview plan from your resume.</p>
         </div>
         <StepIndicator step={step} />
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -24 }}
+        transition={{ duration: 0.3, ease: EASE }}
+        className="space-y-6"
+      >
       {step === 1 && (
         <Panel className="p-5 sm:p-7">
           <PanelHeader
@@ -196,7 +213,12 @@ export default function SetupPage() {
               )
             }
           />
-          <input ref={fileInput} type="file" accept="application/pdf" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+          <input ref={fileInput} type="file" accept="application/pdf" className="hidden" onChange={(event) => {
+              handleFile(event.target.files?.[0]);
+              // Reset so choosing the same file again (e.g. after a failed upload) still fires onChange.
+              event.target.value = '';
+            }}
+          />
 
           <div className="mt-6">
             {resume && !uploading ? (
@@ -242,6 +264,11 @@ export default function SetupPage() {
                   </>
                 )}
               </button>
+            )}
+            {uploadError && !uploading && (
+              <p role="alert" className="mt-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {uploadError}
+              </p>
             )}
           </div>
 
@@ -349,7 +376,14 @@ export default function SetupPage() {
 
       {step === 3 && (
         <Panel tone="plum" className="p-6 sm:p-8">
-          <PanelHeader title="Ready when you are" description="Find a quiet place. You can answer by voice or by typing." />
+          <PanelHeader
+            title="Ready when you are"
+            description={
+              features.speechToText
+                ? 'Find a quiet place. You can answer by voice or by typing.'
+                : 'Find a quiet place. You will type your answers - voice answers are not enabled on this server.'
+            }
+          />
 
           <dl className="mt-6 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
@@ -409,6 +443,8 @@ export default function SetupPage() {
           )}
         </Panel>
       )}
-    </div>
+      </motion.div>
+      </AnimatePresence>
+    </Page>
   );
 }

@@ -103,7 +103,9 @@ export const TurnSchema = z.object({
   }),
   decision: z.object({
     action: z.enum(TURN_ACTIONS),
-    reasoning: z.string().describe('One sentence explaining why you chose this action'),
+    reasoning: z
+      .string()
+      .describe('One sentence explaining why you chose this action, written to the candidate as "you" (they read it in their report)'),
   }),
   reply: z.object({
     acknowledgment: z.string().describe('One short natural sentence reacting to what the candidate actually said'),
@@ -167,4 +169,70 @@ export const ReportNarrativeSchema = z.object({
     .min(2)
     .max(5),
   communicationTips: z.array(z.string()).max(3),
+});
+
+// ---------------------------------------------------------------------------
+// Answer coach (report): grounded rewrite of the candidate's own answer
+// ---------------------------------------------------------------------------
+export const AnswerCoachSchema = z.object({
+  verdict: z.string().describe('One sentence on how the answer landed, addressed as "you"'),
+  missedPoints: z
+    .array(z.object({ point: z.string(), why: z.string().describe('Why an interviewer cares, one sentence') }))
+    .max(4),
+  improvedAnswer: z
+    .string()
+    .describe('The candidate answer rewritten to be stronger, in first person, 80-170 words. Only facts the candidate stated or that are in their profile; unknown details become [placeholders].'),
+  strongAnswerOutline: z.array(z.string()).min(3).max(6).describe('What a strong answer to this question covers'),
+  practiceTip: z.string().describe('One concrete thing to practise'),
+});
+
+// ---------------------------------------------------------------------------
+// Practice drills: one targeted question, graded instantly
+// ---------------------------------------------------------------------------
+export const DrillQuestionSchema = z.object({
+  topicTitle: z.string().describe('Short topic title, max 6 words'),
+  kind: z.enum(['behavioral', 'technical', 'project_deep_dive', 'system_design']),
+  question: z.string().describe('One interview question, 1-2 sentences'),
+  whyThisDrill: z.string().describe('One sentence: why this drill helps the candidate'),
+  rubric: z
+    .array(
+      z.object({
+        criterion: z.string(),
+        dimension: z.enum(DIMENSION_IDS),
+        lookFor: z.string(),
+      })
+    )
+    .min(2)
+    .max(4),
+});
+
+export const DrillFeedbackSchema = z.object({
+  evaluation: z.object({
+    answerQuality: z.enum(['strong', 'adequate', 'weak', 'no_answer', 'off_topic']),
+    criteria: z
+      .array(
+        z.object({
+          criterion: z.string().describe('Copy the rubric criterion text exactly'),
+          score: z.number().int().min(1).max(5),
+          evidence: z.string().describe('Verbatim quote (max 25 words) from the answer, or empty string'),
+        })
+      )
+      .max(4),
+    summary: z.string(),
+    manipulationAttempt: z.boolean(),
+  }),
+  strengths: z.array(z.string()).max(3),
+  improvements: z.array(z.string()).max(3),
+  strongAnswerOutline: z.array(z.string()).min(3).max(6),
+});
+
+// ---------------------------------------------------------------------------
+// Career coach (RAG over the candidate's interview history)
+// ---------------------------------------------------------------------------
+export const CoachAnswerSchema = z.object({
+  answer: z
+    .string()
+    .describe('Helpful, specific answer in plain text (short paragraphs or "- " bullets). Cite sources inline as [1], [2].'),
+  citations: z.array(z.number().int().min(1).max(20)).max(8).describe('Source numbers actually used'),
+  followUps: z.array(z.string()).max(3).describe('Short follow-up questions the candidate might ask next'),
 });

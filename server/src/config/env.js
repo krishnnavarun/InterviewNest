@@ -14,6 +14,7 @@ const EnvSchema = z.object({
 
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_EMBEDDING_MODEL: z.string().default('gemini-embedding-001'),
   // Tried in order when the primary model is overloaded or failing
   GEMINI_FALLBACK_MODELS: z.string().default('gemini-3.1-flash-lite,gemini-3.7-flash,gemini-3.5-flash-lite,gemini-3.5-flash'),
 

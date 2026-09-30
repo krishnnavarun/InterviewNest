@@ -46,8 +46,12 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
 
       {!compact && turn && (
         <div className="mt-6 space-y-3">
-          {turn.text && <p className="text-sm leading-relaxed text-white/70">{turn.text}</p>}
-          {turn.question && <p className="text-lg leading-snug font-semibold">{turn.question}</p>}
+          {turn.text && <p className="line-clamp-3 text-sm leading-relaxed text-white/60">{turn.text}</p>}
+          {turn.question && (
+            <p key={turn.question} className="animate-fade-up text-lg leading-snug font-semibold">
+              {turn.question}
+            </p>
+          )}
         </div>
       )}
       {compact && turn?.question && <p className="min-w-0 flex-1 text-sm font-medium text-white/85">{turn.question}</p>}
@@ -64,6 +68,7 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
           <button
             onClick={onReplay}
             disabled={!voiceOn || !turn}
+            aria-label="Replay question"
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"
           >
             <RotateCcw className="size-4" /> {!compact && 'Replay'}
@@ -71,12 +76,14 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
         )}
         <button
           onClick={onToggleVoice}
+          // A toggle keeps one stable name; aria-pressed announces on/off.
           aria-pressed={voiceOn}
-          aria-label={voiceOn ? 'Mute interviewer voice' : 'Unmute interviewer voice'}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white"
+          aria-label={compact ? 'Interviewer voice' : undefined}
+          title={voiceOn ? 'Mute the interviewer' : 'Let the interviewer speak'}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white aria-pressed:text-white"
         >
-          {voiceOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-          {!compact && (voiceOn ? 'Voice on' : 'Voice off')}
+          {voiceOn ? <Volume2 className="size-4" aria-hidden="true" /> : <VolumeX className="size-4" aria-hidden="true" />}
+          {!compact && 'Voice'}
         </button>
       </div>
     </div>

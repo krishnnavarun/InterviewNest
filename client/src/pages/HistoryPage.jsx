@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/ui/panel';
-import { PageLoader } from '@/components/ui/spinner';
+import { PageSkeleton } from '@/components/ui/skeleton';
+import { Page, Stagger, StaggerItem } from '@/components/ui/motion';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { interviewApi } from '@/lib/services';
@@ -41,13 +42,14 @@ export default function HistoryPage() {
     }
   };
 
-  if (!data) return <PageLoader label="Loading history..." />;
+  if (!data) return <PageSkeleton label="Loading history..." />;
 
   return (
-    <div className="animate-fade-up space-y-6">
+    <Page className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-ink-950">Interview history</h1>
+          <p className="text-eyebrow text-brand-600">History</p>
+          <h1 className="text-title mt-1 text-ink-950">Your interviews</h1>
           <p className="mt-1 text-ink-700">{data.total} interview{data.total === 1 ? '' : 's'}</p>
         </div>
         <Button variant="ink" onClick={() => navigate('/interview/new')}>
@@ -62,12 +64,12 @@ export default function HistoryPage() {
             <p className="mt-1 text-sm text-white/55">Your completed interviews and reports will appear here.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.06]">
+          <Stagger as="ul" className="divide-y divide-white/[0.06]" step={0.04}>
             {data.items.map((item) => {
               const inProgress = item.status === 'in_progress';
               const href = inProgress ? `/interview/${item.id}` : `/interview/${item.id}/report`;
               return (
-                <li key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03] sm:px-4">
+                <StaggerItem as="li" key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03] sm:px-4">
                   <Link to={href} className="flex min-w-0 flex-1 items-center gap-4">
                     <span className={`w-12 shrink-0 text-center text-2xl font-semibold tabular-nums ${SCORE_TEXT[scoreTone(item.overallScore)]}`}>
                       {inProgress ? <PlayCircle className="mx-auto size-6 text-brand-300" /> : item.overallScore ?? '-'}
@@ -89,10 +91,10 @@ export default function HistoryPage() {
                   >
                     <Trash2 className="size-4" />
                   </button>
-                </li>
+                </StaggerItem>
               );
             })}
-          </ul>
+          </Stagger>
         )}
       </Panel>
 
@@ -119,6 +121,6 @@ export default function HistoryPage() {
         onClose={() => setToDelete(null)}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   );
 }

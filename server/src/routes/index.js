@@ -7,6 +7,7 @@ import * as auth from '../controllers/auth.controller.js';
 import * as resume from '../controllers/resume.controller.js';
 import * as interview from '../controllers/interview.controller.js';
 import * as progress from '../controllers/progress.controller.js';
+import * as practice from '../controllers/practice.controller.js';
 
 const router = Router();
 
@@ -31,6 +32,14 @@ router.post('/interviews/:id/code', requireAuth, aiLimiter, validate(interview.C
 router.post('/interviews/:id/finish', requireAuth, aiLimiter, interview.finish);
 router.post('/interviews/:id/speech', requireAuth, aiLimiter, validate(interview.SpeechBody), interview.speech);
 router.delete('/interviews/:id', requireAuth, interview.remove);
+
+// AI coaching: per-answer coach, practice drills, RAG career coach
+router.post('/interviews/:id/topics/:topicId/coach', requireAuth, aiLimiter, practice.topicCoach);
+router.get('/drills', requireAuth, practice.listDrills);
+router.post('/drills', requireAuth, aiLimiter, validate(practice.DrillBody), practice.createDrill);
+router.get('/drills/:id', requireAuth, practice.getDrill);
+router.post('/drills/:id/answer', requireAuth, aiLimiter, validate(practice.DrillAnswerBody), practice.answerDrill);
+router.post('/coach/ask', requireAuth, aiLimiter, validate(practice.CoachBody), practice.coach);
 
 // Progress dashboard
 router.get('/progress', requireAuth, progress.progress);

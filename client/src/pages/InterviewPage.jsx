@@ -14,6 +14,7 @@ import { CodingWorkspace } from '@/components/interview/CodingWorkspace';
 import { interviewApi } from '@/lib/services';
 import { errorMessage } from '@/lib/api';
 import { formatDuration } from '@/lib/format';
+import { Overlay } from '@/components/ui/motion';
 import { useInterviewerVoice } from '@/hooks/useInterviewerVoice';
 import { useServerFeatures } from '@/hooks/useServerFeatures';
 
@@ -85,8 +86,12 @@ export default function InterviewPage() {
       if (data.voiceEnabled && data.phase === 'conversation') speakTurn(lastInterviewer);
     };
 
-    if (location.state?.interview?.id === id) boot(location.state.interview);
-    else
+    if (location.state?.interview?.id === id) {
+      boot(location.state.interview);
+      // The snapshot from the setup page is only valid right now. History state
+      // survives reloads, so clear it: a reload must fetch the live interview.
+      navigate(location.pathname, { replace: true, state: null });
+    } else
       interviewApi
         .get(id)
         .then(boot)
@@ -219,7 +224,7 @@ export default function InterviewPage() {
         </main>
       ) : (
         <main className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <div className="hidden lg:block">
+          <div className="hidden min-h-0 overflow-y-auto lg:block">
             <InterviewerCard
               status={status}
               turn={lastInterviewer}
@@ -274,15 +279,13 @@ export default function InterviewPage() {
         </main>
       )}
 
-      {finishing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/70 p-4 backdrop-blur-sm" role="status">
-          <div className="surface-dark w-full max-w-sm rounded-3xl p-8 text-center">
+      <Overlay open={finishing} label="Writing your feedback report">
+          <div className="surface-dark w-full rounded-3xl p-8 text-center text-white" role="status">
             <Spinner className="mx-auto size-8 text-brand-300" />
             <p className="mt-5 text-lg font-semibold">Writing your feedback report</p>
             <p className="mt-2 text-sm text-white/55">Scoring each topic against its rubric and checking every piece of evidence...</p>
           </div>
-        </div>
-      )}
+      </Overlay>
 
       <ConfirmDialog
         open={confirmEnd}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Code2, Keyboard, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { EASE, motion } from '@/components/ui/motion';
 
 function CandidateMeta({ turn }) {
   if (turn.inputMode === 'code') {
@@ -38,7 +39,13 @@ export function Transcript({ turns, pending, className }) {
     <div className={cn('space-y-4 overflow-y-auto p-4 sm:p-6', className)} aria-live="polite">
       {turns.map((turn) =>
         turn.speaker === 'interviewer' ? (
-          <div key={turn.index} className="flex max-w-[88%] gap-3">
+          <motion.div
+            key={turn.index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="flex max-w-[88%] gap-3"
+          >
             <span className="mt-1 grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-b from-brand-400/60 to-plum-900 text-xs font-semibold">
               N
             </span>
@@ -46,16 +53,22 @@ export function Transcript({ turns, pending, className }) {
               {turn.text && <p className="leading-relaxed text-white/70">{turn.text}</p>}
               {turn.question && <p className={cn('leading-relaxed font-medium text-white', turn.text && 'mt-2')}>{turn.question}</p>}
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <div key={turn.index} className="ml-auto flex max-w-[88%] flex-col items-end">
+          <motion.div
+            key={turn.index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="ml-auto flex max-w-[88%] flex-col items-end"
+          >
             <div className="rounded-2xl rounded-tr-md bg-white px-4 py-3 text-sm leading-relaxed text-ink-950 shadow-lg shadow-black/20">
               {turn.text}
             </div>
             <span className="mt-1.5 text-[11px] text-white/40">
               <CandidateMeta turn={turn} />
             </span>
-          </div>
+          </motion.div>
         )
       )}
 

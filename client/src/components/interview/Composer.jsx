@@ -46,6 +46,9 @@ export function Composer({ disabled, busy, voiceInput = true, onVoiceAnswer, onT
   return (
     <div className="border-t border-white/[0.08] p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
+        {!voiceInput ? (
+          <p className="text-caption text-white/45">Voice answers are off on this server - type your answer below.</p>
+        ) : (
         <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1" role="tablist" aria-label="Answer mode">
           {[
             ...(voiceInput ? [{ id: 'voice', label: 'Speak', icon: Mic }] : []),
@@ -66,6 +69,7 @@ export function Composer({ disabled, busy, voiceInput = true, onVoiceAnswer, onT
             </button>
           ))}
         </div>
+        )}
         <button
           onClick={() => onTextAnswer(SKIP_TEXT)}
           disabled={locked || recording}
@@ -128,22 +132,29 @@ export function Composer({ disabled, busy, voiceInput = true, onVoiceAnswer, onT
           )}
         </div>
       ) : (
-        <div className="flex items-end gap-3">
-          <textarea
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) sendText();
-            }}
-            rows={3}
-            maxLength={5000}
-            disabled={locked}
-            placeholder="Type your answer... (Ctrl + Enter to send)"
-            className="min-h-20 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm text-white placeholder:text-white/35 focus:border-brand-300/50 focus:outline-none disabled:opacity-50"
-          />
-          <Button variant="light" size="icon" onClick={sendText} disabled={locked || !text.trim()} aria-label="Send answer">
-            <SendHorizontal className="size-4" />
-          </Button>
+        <div>
+          <div className="flex items-end gap-3">
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) sendText();
+              }}
+              rows={3}
+              maxLength={5000}
+              disabled={locked}
+              aria-describedby="composer-hint"
+              placeholder="Type your answer..."
+              className="min-h-20 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm text-white placeholder:text-white/35 focus:border-brand-300/50 focus:outline-none disabled:opacity-50"
+            />
+            <Button variant="light" size="icon" onClick={sendText} disabled={locked || !text.trim()} aria-label="Send answer">
+              <SendHorizontal className="size-4" />
+            </Button>
+          </div>
+          {/* Keyboard shortcut only matters with a physical keyboard. */}
+          <p id="composer-hint" className="mt-1.5 hidden text-[11px] text-white/35 sm:block">
+            <kbd className="font-sans">Ctrl</kbd> + <kbd className="font-sans">Enter</kbd> to send · {text.trim() ? text.trim().split(/\s+/).length : 0} words
+          </p>
         </div>
       )}
     </div>

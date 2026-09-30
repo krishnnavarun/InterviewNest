@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Code2, MessagesSquare } from 'lucide-react';
 import { RadialBackground } from '@/components/ui/light-theme-tailwind-css-background-snippet';
+import { EASE, motion } from '@/components/ui/motion';
 
 const HIGHLIGHTS = [
   {
@@ -37,11 +38,16 @@ export function AuthLayout({ children }) {
       <RadialBackground />
 
       <div className="grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1fr_440px]">
-        <section className="hidden animate-fade-up text-ink-950 lg:block">
+        <motion.section
+          className="hidden text-ink-950 lg:block"
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: EASE }}
+        >
           <Logo />
-          <h1 className="mt-10 max-w-lg text-5xl leading-[1.05] font-extrabold tracking-tight">
+          <p className="text-display mt-10 max-w-lg">
             Practise with an AI interviewer that actually <span className="text-brand-500">listens.</span>
-          </h1>
+          </p>
           <p className="mt-5 max-w-md text-lg text-ink-700">
             Upload your resume, pick a role, and get a realistic interview with an evidence-based feedback report.
           </p>
@@ -58,9 +64,16 @@ export function AuthLayout({ children }) {
               </li>
             ))}
           </ul>
-        </section>
+        </motion.section>
 
-        <div className="mx-auto w-full max-w-[440px] animate-fade-up [animation-delay:80ms]">{children}</div>
+        <motion.div
+          className="mx-auto w-full max-w-[440px]"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
+        >
+          {children}
+        </motion.div>
       </div>
     </main>
   );

@@ -22,6 +22,8 @@ import { transcribeAnswer } from './speech.service.js';
 import { generateVerifiedProblem, gradeOutputs, reviewSubmission } from './coding.service.js';
 import { buildReport, hasGradableWork } from './report.service.js';
 import { toHistoryItem, toInterviewView, toStateView, toTurnView } from './interview.view.js';
+import CoachChunk from '../models/CoachChunk.js';
+import { indexInterview } from './careerCoach.service.js';
 
 const LOCK_MS = 90 * 1000;
 const STALE_GENERATION_MS = 2 * 60 * 1000;
@@ -287,6 +289,9 @@ export async function submitAnswer(user, interviewId, input) {
       if (nextTopic.kind === 'coding') {
         interview.phase = 'coding';
         interview.coding = await ensureCodingProblem(interview);
+        // The model wrote its transition before the problem existed, so it
+        // cannot describe it accurately - announce the real problem instead.
+        reply.question = `Let's move to a short hands-on coding exercise: "${interview.coding.problem.title}". The full problem is on your screen - run the examples first, then submit when you're happy with it.`;
       }
     } else {
       interview.phase = 'wrap_up';
@@ -387,6 +392,9 @@ export async function finishInterview(user, interviewId) {
     interview.phase = 'done';
     interview.completedAt = new Date();
     await interview.save();
+    // Add the interview to the career coach's search index (best effort; the
+    // coach also indexes lazily, so a failure here is never user-visible).
+    indexInterview(interview).catch((error) => console.warn('[coach] indexing failed:', error.message));
     return toInterviewView(interview);
   });
 }
@@ -420,4 +428,5 @@ export async function listInterviews(userId, { page = 1, limit = 10 }) {
 export async function deleteInterview(userId, interviewId) {
   const deleted = await Interview.findOneAndDelete({ _id: interviewId, userId });
   if (!deleted) throw notFound('Interview');
+  await CoachChunk.deleteMany({ interviewId });
 }

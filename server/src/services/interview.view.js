@@ -67,6 +67,7 @@ export function toInterviewView(interview) {
     gap: interview.gap ?? null,
     weakAreasTargeted: interview.weakAreasTargeted ?? [],
     report: done ? interview.report : null,
+    coaching: done ? interview.coaching ?? {} : {},
     overallScore: interview.overallScore ?? null,
     aiStats: interview.aiStats,
   };

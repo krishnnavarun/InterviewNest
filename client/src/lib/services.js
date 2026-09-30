@@ -30,6 +30,18 @@ export const interviewApi = {
   remove: (id) => unwrap(api.delete(`/interviews/${id}`)),
 };
 
+export const coachingApi = {
+  coachTopic: (interviewId, topicId) => unwrap(api.post(`/interviews/${interviewId}/topics/${topicId}/coach`)),
+  askCoach: (question, history) => unwrap(api.post('/coach/ask', { question, history })),
+};
+
+export const drillApi = {
+  list: () => unwrap(api.get('/drills')),
+  create: (payload = {}) => unwrap(api.post('/drills', payload)),
+  get: (id) => unwrap(api.get(`/drills/${id}`)),
+  answer: (id, text) => unwrap(api.post(`/drills/${id}/answer`, { text })),
+};
+
 export const progressApi = {
   get: () => unwrap(api.get('/progress')),
 };

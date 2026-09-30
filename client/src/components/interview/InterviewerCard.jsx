@@ -11,12 +11,12 @@ const STATUS = {
   finishing: { label: 'Writing your report', dot: 'bg-amber-300' },
 };
 
-export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay, blocked, onResume, compact = false }) {
+export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay, blocked, onResume, compact = false, showQuestion = true }) {
   const info = STATUS[status] ?? STATUS.listening;
   const animated = status === 'speaking';
 
   return (
-    <div className={cn('surface-dark rounded-3xl text-white', compact ? 'flex items-center gap-4 p-4' : 'p-6')}>
+    <div className={cn('surface-dark rounded-3xl text-white', compact ? 'flex flex-wrap items-center gap-x-4 gap-y-3 p-4' : 'p-6')}>
       <div className={cn('flex items-center gap-4', !compact && 'flex-col text-center')}>
         <span className={cn('relative grid shrink-0 place-items-center', compact ? 'size-12' : 'size-24')}>
           {animated && (
@@ -37,7 +37,7 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
         <div>
           <p className={cn('font-semibold', !compact && 'text-lg')}>Natalie</p>
           <p className="text-xs text-white/50">AI Interviewer</p>
-          <p className={cn('mt-2 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-medium', compact && 'mt-1')} aria-live="polite">
+          <p className={cn('mt-2 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-medium whitespace-nowrap', compact && 'mt-1')} aria-live="polite">
             {status === 'thinking' || status === 'finishing' ? <Spinner className="size-3" /> : <span className={cn('size-2 rounded-full', info.dot)} />}
             {info.label}
           </p>
@@ -54,7 +54,7 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
           )}
         </div>
       )}
-      {compact && turn?.question && <p className="min-w-0 flex-1 text-sm font-medium text-white/85">{turn.question}</p>}
+      {compact && showQuestion && turn?.question && <p className="order-last min-w-0 basis-full text-sm font-medium text-white/85 sm:order-none sm:basis-0 sm:flex-1">{turn.question}</p>}
 
       <div className={cn('flex items-center gap-2', compact ? 'ml-auto' : 'mt-6 justify-center')}>
         {blocked ? (

@@ -226,7 +226,7 @@ export function codingProblemPrompt({ role, difficulty, avoidTitles }) {
         '- The output must be fully deterministic: if several answers could be valid, specify exactly which one to return (e.g. "sorted ascending", "the first one").',
         '- examples: 2-3 small cases with a short explanation.',
         '- tests: 8 hidden tests covering edge cases (empty input, single element, duplicates, negatives, larger inputs).',
-        '- args is a JSON array of the arguments in parameter order; expected is the JSON return value.',
+        '- args is a JSON array of the arguments in parameter order, so a single array parameter is wrapped: f([1,2,3]) -> args "[[1,2,3]]". expected is the JSON return value.',
         '- referenceSolution: a correct, efficient JavaScript function declaration `function <functionName>(...) {...}`. No imports, require, or console.',
       ].join('\n'),
       avoidTitles?.length ? `Do not reuse these recent problems: ${avoidTitles.join('; ')}.` : '',

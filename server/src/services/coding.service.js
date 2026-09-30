@@ -13,11 +13,27 @@ const PYTHON_KEYWORDS = new Set(['and', 'as', 'assert', 'async', 'await', 'break
 const MIN_VERIFIED_TESTS = 5;
 const MAX_ATTEMPTS = 2;
 
+const isArrayType = (type) => /\[\]$|^array/i.test(String(type).trim());
+
+/**
+ * Models often forget to wrap a lone argument in the args list, writing
+ * ["a","b"] for f(["a","b"]) instead of [["a","b"]]. With one parameter the
+ * intent is unambiguous, so wrap it rather than lose the test case.
+ */
+export function normalizeArgs(args, params) {
+  if (params.length !== 1) return args;
+  if (!Array.isArray(args)) return [args];
+  if (args.length !== 1) return [args];
+  return isArrayType(params[0].type) && !Array.isArray(args[0]) ? [args] : args;
+}
+
 /** Parse "args"/"expected" JSON strings into a canonical form; null if invalid. */
-function parseCase(testCase) {
-  const args = safeJsonParse(testCase.args);
+export function parseCase(testCase, params) {
+  const parsed = safeJsonParse(testCase.args);
   const expected = safeJsonParse(testCase.expected);
-  if (!Array.isArray(args) || expected === undefined) return null;
+  if (parsed === undefined || expected === undefined) return null;
+  const args = normalizeArgs(parsed, params);
+  if (!Array.isArray(args)) return null;
   return { ...testCase, args: JSON.stringify(args), expected: JSON.stringify(expected) };
 }
 
@@ -34,8 +50,8 @@ export async function verifyProblem(raw) {
     name: PYTHON_KEYWORDS.has(param.name) ? `${param.name}_` : param.name,
   }));
 
-  const examples = raw.examples.map(parseCase).filter(Boolean);
-  const tests = raw.tests.map(parseCase).filter(Boolean);
+  const examples = raw.examples.map((testCase) => parseCase(testCase, params)).filter(Boolean);
+  const tests = raw.tests.map((testCase) => parseCase(testCase, params)).filter(Boolean);
   const all = [...examples, ...tests];
 
   const outputs = await runReferenceSolution({

@@ -94,7 +94,7 @@ The coding problem is generated **in the background while the candidate is still
 - **Accessibility, best practices and SEO:** Lighthouse scored 100 in each category on every page (landing, login, signup, dashboard, setup, interview room, report, practice, AI coach, history). Public pages were audited on mobile, signed-in pages on desktop.
 - **Performance budget:** the animation library's feature bundle loads lazily (`LazyMotion`), and vendor code is split into long-lived chunks, giving about 163 KB of gzipped JavaScript on first load.
 - **Resilience:** if the database is unreachable the API returns a clear 503 instead of a crash. A failed turn shows a Retry banner that resubmits without duplicating the answer. Reloading mid-interview restores the room from the server.
-- **Responsive:** tested at 375px with no horizontal scrolling on any page.
+- **Responsive:** tested at 375px with no horizontal scrolling on any page, including the coding round. Monaco does not support mobile browsers, so touch devices get a lightweight code editor that keeps indentation.
 
 ## Getting started
 

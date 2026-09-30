@@ -365,7 +365,7 @@ export default function SetupPage() {
 
           <div className="flex justify-between">
             <Button variant="ghost" className="text-ink-700 hover:bg-ink-950/5 hover:text-ink-950" onClick={() => setStep(1)}>
-              <ArrowLeft className="size-4" /> Resume
+              <ArrowLeft className="size-4" /> Back
             </Button>
             <Button variant="ink" disabled={!role} onClick={() => setStep(3)}>
               Continue <ArrowRight className="size-4" />

@@ -44,6 +44,50 @@ function defineTheme(monaco) {
   });
 }
 
+// Monaco does not support mobile browsers, so touch screens get a plain code textarea.
+const isTouchDevice = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+function TouchCodeEditor({ value, onChange, tabSize, language }) {
+  const indentUnit = ' '.repeat(tabSize);
+
+  const insert = (target, text) => {
+    const { selectionStart: start, selectionEnd: end } = target;
+    const next = value.slice(0, start) + text + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => target.setSelectionRange(start + text.length, start + text.length));
+  };
+
+  const handleKeyDown = (event) => {
+    const target = event.currentTarget;
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      insert(target, indentUnit);
+    } else if (event.key === 'Enter') {
+      // Keep the current indentation, and indent one more level after ":", "{", "[" or "(".
+      event.preventDefault();
+      const lineStart = value.lastIndexOf('\n', target.selectionStart - 1) + 1;
+      const line = value.slice(lineStart, target.selectionStart);
+      const indent = line.match(/^[ \t]*/)[0];
+      insert(target, `\n${indent}${/[:{[(]\s*$/.test(line) ? indentUnit : ''}`);
+    }
+  };
+
+  return (
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={handleKeyDown}
+      aria-label={`${language === 'python' ? 'Python' : 'JavaScript'} code editor`}
+      spellCheck={false}
+      autoCapitalize="off"
+      autoComplete="off"
+      autoCorrect="off"
+      wrap="off"
+      className="block h-full min-h-[300px] w-full resize-none bg-transparent p-4 font-mono text-[13px] leading-relaxed text-white/90 caret-brand-300 outline-none"
+    />
+  );
+}
+
 function ResultRow({ testCase, result, index }) {
   const passed = checkResult(result, testCase.expected);
   return (
@@ -83,6 +127,7 @@ export function CodingWorkspace({ problem, disabled, onSubmit }) {
   const [running, setRunning] = useState(null); // 'run' | 'submit'
   const [run, setRun] = useState(null); // { cases, results, compileError }
   const [pythonState, setPythonState] = useState('idle');
+  const [touch] = useState(isTouchDevice);
 
   const examples = useMemo(() => problem.examples.map((item) => ({ ...item, hidden: false })), [problem]);
   const allCases = useMemo(() => [...examples, ...problem.tests.map((item) => ({ ...item, hidden: true }))], [examples, problem]);
@@ -133,21 +178,21 @@ export function CodingWorkspace({ problem, disabled, onSubmit }) {
   const passedCount = run && !run.compileError ? run.cases.filter((testCase, index) => checkResult(run.results[index], testCase.expected)).length : 0;
 
   return (
-    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
-      <section className="surface-ink min-h-0 overflow-y-auto rounded-2xl p-5 text-white">
+    <div className="grid shrink-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:shrink lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
+      <section className="surface-ink rounded-2xl p-5 text-white lg:min-h-0 lg:overflow-y-auto">
         <Badge tone="brand">Coding exercise</Badge>
         <h2 className="mt-3 text-xl font-bold">{problem.title}</h2>
         <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-white/75">{problem.statement}</p>
 
         <p className="mt-5 text-xs font-semibold tracking-wide text-white/45 uppercase">Signature</p>
-        <code className="mt-1.5 block rounded-lg bg-black/30 p-3 font-mono text-xs text-brand-200">
+        <code className="mt-1.5 block rounded-lg bg-black/30 p-3 font-mono break-words text-xs text-brand-200">
           {problem.functionName}({problem.params.map((param) => `${param.name}: ${param.type}`).join(', ')}) → {problem.returnType}
         </code>
 
         <p className="mt-5 text-xs font-semibold tracking-wide text-white/45 uppercase">Examples</p>
         <ul className="mt-2 space-y-2.5">
           {problem.examples.map((example, index) => (
-            <li key={index} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 font-mono text-xs">
+            <li key={index} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 font-mono text-xs break-words">
               <p>
                 <span className="text-white/40">input </span>
                 {formatArgs(example.args)}
@@ -183,7 +228,7 @@ export function CodingWorkspace({ problem, disabled, onSubmit }) {
             ))}
             {language === 'python' && pythonState === 'loading' && (
               <span className="ml-2 flex items-center gap-1.5 text-xs text-white/45">
-                <Spinner className="size-3" /> Loading Python runtime...
+                <Spinner className="size-3" /> Loading Python<span className="hidden sm:inline"> runtime</span>...
               </span>
             )}
           </div>
@@ -196,23 +241,32 @@ export function CodingWorkspace({ problem, disabled, onSubmit }) {
         </div>
 
         <div className="min-h-[300px] flex-1">
-          <Editor
-            language={language}
-            value={code}
-            theme="interviewnest"
-            beforeMount={defineTheme}
-            onChange={(value) => setDrafts((current) => ({ ...current, [language]: value ?? '' }))}
-            loading={<Spinner className="text-white/60" />}
-            options={{
-              fontSize: 14,
-              fontFamily: 'JetBrains Mono, monospace',
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              tabSize: language === 'python' ? 4 : 2,
-              automaticLayout: true,
-              padding: { top: 14 },
-            }}
-          />
+          {touch ? (
+            <TouchCodeEditor
+              value={code}
+              language={language}
+              tabSize={language === 'python' ? 4 : 2}
+              onChange={(value) => setDrafts((current) => ({ ...current, [language]: value }))}
+            />
+          ) : (
+            <Editor
+              language={language}
+              value={code}
+              theme="interviewnest"
+              beforeMount={defineTheme}
+              onChange={(value) => setDrafts((current) => ({ ...current, [language]: value ?? '' }))}
+              loading={<Spinner className="text-white/60" />}
+              options={{
+                fontSize: 14,
+                fontFamily: 'JetBrains Mono, monospace',
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                tabSize: language === 'python' ? 4 : 2,
+                automaticLayout: true,
+                padding: { top: 14 },
+              }}
+            />
+          )}
         </div>
 
         {run && (

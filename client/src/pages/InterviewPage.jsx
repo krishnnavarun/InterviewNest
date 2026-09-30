@@ -247,8 +247,9 @@ export default function InterviewPage() {
             <div className="lg:hidden">
               <InterviewerCard
                 compact
+                showQuestion={false}
                 status={status}
-                turn={null}
+                turn={lastInterviewer}
                 voiceOn={voiceOn}
                 onToggleVoice={() => {
                   stopVoice();

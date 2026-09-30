@@ -6,6 +6,16 @@ export function notFoundHandler(req, res) {
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
 }
 
+const DB_UNREACHABLE = /^Mongo(ose)?(ServerSelection|Network|NetworkTimeout|PoolCleared|TopologyClosed)Error$/;
+
+/** True if the error, or anything in its cause chain, means the database can't be reached. */
+export function isDbUnreachable(error) {
+  for (let current = error, depth = 0; current && depth < 5; current = current.cause, depth++) {
+    if (DB_UNREACHABLE.test(current.name ?? '')) return true;
+  }
+  return false;
+}
+
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(error, req, res, next) {
   // A streamed response (e.g. audio) already started: let Express close the socket.
@@ -28,7 +38,7 @@ export function errorHandler(error, req, res, next) {
   } else if (error instanceof mongoose.Error.CastError) {
     status = 404;
     message = 'Not found.';
-  } else if (error?.name === 'MongooseServerSelectionError' || error?.name === 'MongoNetworkError') {
+  } else if (isDbUnreachable(error)) {
     // Database unreachable (e.g. Atlas IP access list, network outage).
     status = 503;
     message = 'Our database is temporarily unreachable. Please try again in a minute.';

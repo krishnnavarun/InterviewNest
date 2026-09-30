@@ -144,7 +144,7 @@ export async function ensureCodingProblem(interviewDoc) {
     for (let waited = 0; waited < 60; waited++) {
       const fresh = await Interview.findById(id).select('coding').lean();
       if (fresh.coding?.status === 'ready') return fresh.coding;
-      if (fresh.coding?.status === 'failed') break;
+      if (fresh.coding?.status === 'failed') throw new AppError(502, 'Could not prepare a reliable coding exercise. Please try again.');
       await sleep(1000);
     }
     throw new AppError(503, 'The coding exercise is still being prepared. Please try again in a moment.');

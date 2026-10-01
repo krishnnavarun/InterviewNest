@@ -1,76 +1,53 @@
-// ============================================
-// app.js - Express Application Setup
-// ============================================
-// This file configures the Express app with:
-//   - CORS (so React frontend can talk to us)
-//   - Body parsing (JSON + large payloads)
-//   - API routes
-//   - Error handling
-// ============================================
-
 import express from 'express';
 import cors from 'cors';
-
-// Import all routes (bundled in one index file)
+import helmet from 'helmet';
+import { clientOrigins, env } from './config/env.js';
+import { connectDB } from './config/db.js';
+import { setUsageListener } from './ai/gemini.js';
+import { recordAiCall } from './services/usage.service.js';
 import routes from './routes/index.js';
+import { errorHandler, notFoundHandler } from './middleware/error.js';
 
-// Import the global error handler
-import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+setUsageListener(recordAiCall);
 
-// ---- Create the Express App ----
 const app = express();
 
-// ============================================
-// MIDDLEWARE (runs on every request, in order)
-// ============================================
+app.set('trust proxy', 1); // behind Vercel's proxy: use the real client IP for rate limiting
+app.use(helmet());
+app.use(
+  cors({
+    origin: clientOrigins,
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+app.use(express.json({ limit: '1mb' }));
 
-// 1. CORS: Allow our frontend (React) to talk to this backend
-//    Without this, browsers will block requests from localhost:5173 → localhost:5000
-const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "https://interview-nest-two.vercel.app",
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-
-// 2. Body Parser: Convert incoming JSON requests to JavaScript objects
-//    10mb limit to handle large resume text and interview data
-app.use(express.json({ limit: '10mb' }));
-
-// ============================================
-// ROUTES
-// ============================================
-
-// Mount all API routes under /api
-// /api/auth      → authentication routes
-// /api/interview → interview routes (start, answer, feedback)
-// /api/resume    → resume upload and parsing routes
-// /api/history   → interview history routes
-app.use('/api', routes);
-
-// Root route/health check
 app.get('/', (req, res) => {
+  res.json({ success: true, message: 'InterviewNest API is running', model: env.GEMINI_MODEL });
+});
+app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: "InterviewNest API Server is running",
-    environment: process.env.NODE_ENV || "development"
+    status: 'ok',
+    time: new Date().toISOString(),
+    // Lets the client adapt its UI to optional integrations.
+    features: {
+      speechToText: Boolean(env.ASSEMBLYAI_API_KEY),
+      textToSpeech: Boolean(env.MURF_API_KEY),
+      googleSignIn: Boolean(env.GOOGLE_CLIENT_ID),
+    },
   });
 });
 
-// ============================================
-// ERROR HANDLING (must be AFTER routes)
-// ============================================
+// Make sure MongoDB is connected before any API route runs (serverless cold starts).
+app.use('/api', async (req, res, next) => {
+  await connectDB();
+  next();
+});
+app.use('/api', routes);
 
-// Handle 404 - Route not found
 app.use(notFoundHandler);
-
-// Handle all other errors (500, validation errors, etc.)
 app.use(errorHandler);
 
-// Export the app (used in server.js)
 export default app;

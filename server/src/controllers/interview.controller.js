@@ -1,155 +1,82 @@
+import { z } from 'zod';
+import { CODE_LANGUAGES, DIFFICULTY_IDS, ROLE_IDS } from '../config/interview.constants.js';
+import { AppError } from '../lib/AppError.js';
 import * as interviewService from '../services/interview.service.js';
-import { transcribeAudio } from '../services/assemblyai.service.js';
-import { streamAudio } from '../services/murf.service.js';
+import { isTtsEnabled, streamSpeech } from '../services/tts.service.js';
 
-export const startInterview = async (req, res, next) => {
-  try {
-    const { role, resumeText, totalQuestions } = req.body;
+export const StartBody = z.object({
+  role: z.enum(ROLE_IDS),
+  difficulty: z.enum(DIFFICULTY_IDS),
+  jobDescription: z
+    .string()
+    .trim()
+    .max(12000)
+    .optional()
+    .transform((value) => (value && value.length >= 80 ? value : undefined)),
+  focusWeakAreas: z.boolean().default(true),
+  voiceEnabled: z.boolean().default(true),
+});
 
-    if (!role) {
-      return res.status(400).json({ success: false, message: 'Please select a role for the interview.' });
-    }
-    if (!resumeText) {
-      return res.status(400).json({ success: false, message: 'Please upload your resume first.' });
-    }
+export const CodeBody = z.object({
+  language: z.enum(CODE_LANGUAGES),
+  code: z.string().max(20000),
+  outputs: z
+    .array(
+      z.object({
+        actual: z.string().max(20000).nullable().optional(),
+        error: z.string().max(2000).nullable().optional(),
+      })
+    )
+    .max(20),
+});
 
-    const result = await interviewService.startInterview(
-      req.user._id,
-      role,
-      resumeText,
-      req.user.name,
-      totalQuestions || 5
-    );
+export const SpeechBody = z.object({ turnIndex: z.number().int().min(0) });
 
-    return res.status(201).json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-};
+export const ListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
 
-export const submitTextAnswer = async (req, res, next) => {
-  try {
-    const { answer } = req.body;
+export async function list(req, res) {
+  const query = ListQuery.parse(req.query);
+  res.json({ success: true, data: await interviewService.listInterviews(req.user._id, query) });
+}
 
-    if (!answer || answer.trim() === '') {
-      return res.status(400).json({ success: false, message: 'Please provide an answer.' });
-    }
+export async function start(req, res) {
+  res.status(201).json({ success: true, data: await interviewService.startInterview(req.user, req.body) });
+}
 
-    const result = await interviewService.submitAnswer(
-      req.params.id,
-      req.user._id,
-      answer
-    );
+export async function get(req, res) {
+  res.json({ success: true, data: await interviewService.getInterview(req.user._id, req.params.id) });
+}
 
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-};
+export async function prepareCoding(req, res) {
+  res.json({ success: true, data: await interviewService.prepareCoding(req.user._id, req.params.id) });
+}
 
-export const submitVoiceAnswer = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No audio file received.' });
-    }
+export async function answer(req, res) {
+  const data = await interviewService.submitAnswer(req.user, req.params.id, {
+    text: req.body?.text,
+    audio: req.file ?? null,
+  });
+  res.json({ success: true, data });
+}
 
-    const transcribedText = await transcribeAudio(
-      req.file.buffer,
-      req.file.originalname || 'answer.webm'
-    );
+export async function submitCode(req, res) {
+  res.json({ success: true, data: await interviewService.submitCode(req.user, req.params.id, req.body) });
+}
 
-    const result = await interviewService.submitAnswer(
-      req.params.id,
-      req.user._id,
-      transcribedText
-    );
+export async function finish(req, res) {
+  res.json({ success: true, data: await interviewService.finishInterview(req.user, req.params.id) });
+}
 
-    return res.json({
-      success: true,
-      data: {
-        ...result,
-        transcribedText,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+export async function speech(req, res) {
+  if (!isTtsEnabled()) throw new AppError(503, 'Voice output is not configured.');
+  const text = await interviewService.getSpeechText(req.user._id, req.params.id, req.body.turnIndex);
+  await streamSpeech(text, res);
+}
 
-export const submitCode = async (req, res, next) => {
-  try {
-    const { code, language } = req.body;
-
-    if (!code || code.trim() === '') {
-      return res.status(400).json({ success: false, message: 'Please write some code before submitting.' });
-    }
-
-    const evaluation = await interviewService.submitCode(
-      req.params.id,
-      req.user._id,
-      code,
-      language || 'javascript'
-    );
-
-    return res.json({ success: true, data: evaluation });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const endInterview = async (req, res, next) => {
-  try {
-    const result = await interviewService.endInterview(
-      req.params.id,
-      req.user._id
-    );
-
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getInterview = async (req, res, next) => {
-  try {
-    const interview = await interviewService.getInterviewById(
-      req.params.id,
-      req.user._id
-    );
-
-    return res.json({ success: true, data: interview });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const transcribeOnly = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No audio file received.' });
-    }
-
-    const text = await transcribeAudio(
-      req.file.buffer,
-      req.file.originalname || 'answer.webm'
-    );
-
-    return res.json({ success: true, data: { text } });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const speakText = async (req, res, next) => {
-  try {
-    const { text } = req.body;
-
-    if (!text) {
-      return res.status(400).json({ success: false, message: 'No text provided for speech.' });
-    }
-
-    await streamAudio(text, res);
-  } catch (error) {
-    next(error);
-  }
-};
+export async function remove(req, res) {
+  await interviewService.deleteInterview(req.user._id, req.params.id);
+  res.json({ success: true, data: { deleted: true } });
+}

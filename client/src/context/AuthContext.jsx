@@ -1,60 +1,58 @@
-// ============================================
-// AuthContext.jsx - Authentication State
-// ============================================
-// Manages user login state across the app.
-// Reference: createContext, useState, useEffect - reference-react.md
-// ============================================
-
-import { createContext, useState, useEffect } from 'react';
-import { getMe } from '../services/authService.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { api, tokenStore, unwrap } from '@/lib/api';
 
 const AuthContext = createContext(null);
 
-function AuthProvider({ children }) {
-  // State: current user data and loading status
-  // Reference: useState hook - reference-react.md
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(tokenStore.get()));
 
-  // On mount: check if user is already logged in via stored token
-  // Reference: useEffect hook - reference-react.md
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const userData = await getMe();
-        setUser(userData);
-      } catch (error) {
-        localStorage.removeItem('token');
-      }
-      setLoading(false);
-    };
-
-    checkAuth();
+  const logout = useCallback(() => {
+    tokenStore.clear();
+    setUser(null);
   }, []);
 
-  // Login: save token and set user
-  const login = (token, userData) => {
-    localStorage.setItem('token', token);
-    setUser(userData);
-  };
+  // Restore the session on page load.
+  useEffect(() => {
+    if (!tokenStore.get()) return;
+    unwrap(api.get('/auth/me'))
+      .then(setUser)
+      .catch(() => tokenStore.clear())
+      .finally(() => setLoading(false));
+  }, []);
 
-  // Logout: remove token and clear user
-  const logoutUser = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-  };
+  // Any 401 from the API means the token expired.
+  useEffect(() => {
+    window.addEventListener('auth:expired', logout);
+    return () => window.removeEventListener('auth:expired', logout);
+  }, [logout]);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout: logoutUser }}>
-      {children}
-    </AuthContext.Provider>
+  const startSession = useCallback(({ token, user: account }, remember = true) => {
+    tokenStore.set(token, remember);
+    setUser(account);
+    return account;
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login: async ({ email, password, remember }) =>
+        startSession(await unwrap(api.post('/auth/login', { email, password })), remember),
+      register: async ({ name, email, password }) =>
+        startSession(await unwrap(api.post('/auth/register', { name, email, password }))),
+      loginWithGoogle: async (accessToken) =>
+        startSession(await unwrap(api.post('/auth/google', { accessToken }))),
+      logout,
+    }),
+    [user, loading, startSession, logout]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export { AuthContext, AuthProvider };
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used inside <AuthProvider>');
+  return context;
+}

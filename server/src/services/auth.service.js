@@ -1,92 +1,73 @@
-// ============================================
-// auth.service.js - Authentication Service
-// ============================================
-// Contains the business logic for:
-//   - Email/password registration and login
-//   - Getting user profile
-// Reference: bcrypt.hash(), bcrypt.compare() - reference-backend.md
-// ============================================
-
 import bcrypt from 'bcryptjs';
-import User from '../models/User.model.js';
-import { generateToken } from '../utils/jwt.utils.js';
+import User from '../models/User.js';
+import { env } from '../config/env.js';
+import { signToken } from '../middleware/auth.js';
+import { AppError } from '../lib/AppError.js';
 
-/**
- * Register a new user with email and password.
- */
-export const register = async (name, email, password) => {
-  // Check if email already exists
-  const existing = await User.findOne({ email });
-  if (existing) {
-    const error = new Error('Email already registered.');
-    error.statusCode = 409;
-    throw error;
+const session = (user) => ({ token: signToken(user), user: user.toPublic() });
+
+export async function register({ name, email, password }) {
+  const exists = await User.exists({ email });
+  if (exists) throw new AppError(409, 'An account with this email already exists.');
+
+  const user = await User.create({ name, email, password: await bcrypt.hash(password, 12) });
+  return session(user);
+}
+
+export async function login({ email, password }) {
+  const user = await User.findOne({ email }).select('+password');
+  if (user && !user.password) {
+    throw new AppError(401, 'This account uses Google sign-in. Continue with Google instead.');
   }
-
-  // Hash the password with bcrypt (10 salt rounds)
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Create the user in the database
-  const user = await User.create({ name, email, password: hashedPassword });
-
-  // Generate a JWT token
-  const token = generateToken(user);
-
-  return {
-    token,
-    user: { id: user._id, email: user.email, name: user.name },
-  };
-};
-
-/**
- * Login a user with email and password.
- */
-export const emailLogin = async (email, password) => {
-  // Find user by email
-  const user = await User.findOne({ email });
-  if (!user || !user.password) {
-    const error = new Error('Invalid email or password.');
-    error.statusCode = 401;
-    throw error;
+  // Same message for unknown email and wrong password (no account enumeration).
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    throw new AppError(401, 'Invalid email or password.');
   }
-
-  // Compare the provided password with the stored hash
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) {
-    const error = new Error('Invalid email or password.');
-    error.statusCode = 401;
-    throw error;
-  }
-
-  // Update last login time
-  user.lastLogin = new Date();
+  user.lastLoginAt = new Date();
   await user.save();
-
-  // Generate a JWT token
-  const token = generateToken(user);
-
-  return {
-    token,
-    user: { id: user._id, email: user.email, name: user.name },
-  };
-};
+  return session(user);
+}
 
 /**
- * Get a user's profile by their ID.
+ * Sign in with a Google OAuth access token obtained in the browser.
+ * We only trust the token after Google confirms it was issued to OUR client id
+ * (prevents a token minted for another app being replayed here).
  */
-export const getUserProfile = async (userId) => {
-  const user = await User.findById(userId).select('-__v -password');
+export async function loginWithGoogle(accessToken) {
+  if (!env.GOOGLE_CLIENT_ID) throw new AppError(503, 'Google sign-in is not configured.');
 
-  if (!user) {
-    throw new Error('User not found');
+  const infoResponse = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  const info = await infoResponse.json().catch(() => ({}));
+  if (!infoResponse.ok || info.aud !== env.GOOGLE_CLIENT_ID || !info.email) {
+    throw new AppError(401, 'Google sign-in failed. Please try again.');
+  }
+  if (String(info.email_verified) !== 'true') {
+    throw new AppError(401, 'Your Google email address is not verified.');
   }
 
-  return {
-    id: user._id,
-    email: user.email,
-    name: user.name,
-    picture: user.picture,
-    createdAt: user.createdAt,
-    lastLogin: user.lastLogin,
-  };
-};
+  const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(10000),
+  });
+  const profile = profileResponse.ok ? await profileResponse.json() : {};
+
+  const email = info.email.toLowerCase();
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = await User.create({
+      name: (profile.name || email.split('@')[0]).slice(0, 60),
+      email,
+      googleId: info.sub,
+      authProvider: 'google',
+    });
+  } else if (!user.googleId) {
+    // Google has verified ownership of this email, so it is safe to link.
+    user.googleId = info.sub;
+  }
+  user.lastLoginAt = new Date();
+  await user.save();
+  return session(user);
+}

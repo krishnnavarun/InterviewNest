@@ -1,0 +1,9 @@
+# InterviewNest
+
+> AI mock-interview platform: an adaptive AI interviewer asks about your real projects, follows up on your answers, runs a verified coding round, and grades every answer against a rubric with quoted evidence.
+
+## Pages
+
+- [Home](/): what InterviewNest does and how the AI works
+- [Sign up](/signup): create a free account
+- [Sign in](/login): continue to your dashboard

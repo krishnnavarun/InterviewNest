@@ -1,57 +1,33 @@
+import { z } from 'zod';
+import { ROLE_IDS, getRole } from '../config/interview.constants.js';
+import { AppError } from '../lib/AppError.js';
 import * as resumeService from '../services/resume.service.js';
+import { analyzeJobDescription } from '../services/planner.service.js';
+import { assertWithinQuota } from '../services/usage.service.js';
 
-export const uploadResume = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded. Please select a PDF.' });
-    }
+export const GapBody = z.object({
+  role: z.enum(ROLE_IDS),
+  jobDescription: z.string().trim().min(80, 'Paste the full job description (at least 80 characters)').max(12000),
+});
 
-    let extractedText;
-    try {
-      extractedText = await resumeService.parseResumePDF(req.file.buffer);
-    } catch (parseError) {
-      console.warn('PDF parsing failed, falling back to mock text:', parseError.message);
-      extractedText = 'Experienced Frontend Developer with 5 years of experience in React, JavaScript, and Node.js. Built multiple web applications and led team projects.';
-    }
+export async function getResume(req, res) {
+  res.json({ success: true, data: await resumeService.getResume(req.user._id) });
+}
 
-    const resume = await resumeService.saveResume(
-      req.user._id,
-      req.file.originalname,
-      extractedText
-    );
+export async function uploadResume(req, res) {
+  if (!req.file) throw new AppError(400, 'Please choose a PDF file to upload.');
+  await assertWithinQuota(req.user._id);
+  res.json({ success: true, data: await resumeService.analyzeResume(req.user._id, req.file) });
+}
 
-    return res.json({
-      success: true,
-      data: {
-        resumeId: resume._id,
-        fileName: resume.fileName,
-        preview: extractedText.substring(0, 500),
-        text: extractedText,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getResume = async (req, res, next) => {
-  try {
-    const resume = await resumeService.getUserResume(req.user._id);
-
-    if (!resume) {
-      return res.status(404).json({ success: false, message: 'No resume found. Please upload one.' });
-    }
-
-    return res.json({
-      success: true,
-      data: {
-        resumeId: resume._id,
-        fileName: resume.fileName,
-        preview: resume.extractedText.substring(0, 500),
-        text: resume.extractedText,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+export async function analyzeGap(req, res) {
+  await assertWithinQuota(req.user._id);
+  const resume = await resumeService.requireResume(req.user._id);
+  const gap = await analyzeJobDescription({
+    resume,
+    role: getRole(req.body.role),
+    jobDescription: req.body.jobDescription,
+    userId: String(req.user._id),
+  });
+  res.json({ success: true, data: gap });
+}

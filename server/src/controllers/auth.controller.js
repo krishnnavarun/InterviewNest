@@ -1,73 +1,33 @@
-// ============================================
-// auth.controller.js - Auth Controller
-// ============================================
-// Handles HTTP requests for authentication.
-// Flow: Route → Controller → Service → Database
-// Reference: req.body, res.json(), res.status() - reference-backend.md
-// ============================================
-
+import { z } from 'zod';
 import * as authService from '../services/auth.service.js';
 
-/**
- * POST /api/auth/register
- * Register with email and password.
- */
-export const registerUser = async (req, res, next) => {
-  try {
-    const { name, email, password } = req.body;
+export const RegisterBody = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(60),
+  email: z.email('Enter a valid email').transform((email) => email.toLowerCase()),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
-    }
+export const LoginBody = z.object({
+  email: z.email('Enter a valid email').transform((email) => email.toLowerCase()),
+  password: z.string().min(1, 'Password is required').max(128),
+});
 
-    const result = await authService.register(name, email, password);
-    return res.status(201).json({ success: true, data: result });
-  } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).json({ success: false, message: error.message });
-    next(error);
-  }
-};
+export const GoogleBody = z.object({
+  accessToken: z.string().min(10).max(4096),
+});
 
-/**
- * POST /api/auth/login
- * Login with email and password.
- */
-export const loginUser = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
+export async function google(req, res) {
+  res.json({ success: true, data: await authService.loginWithGoogle(req.body.accessToken) });
+}
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
-    }
+export async function register(req, res) {
+  res.status(201).json({ success: true, data: await authService.register(req.body) });
+}
 
-    const result = await authService.emailLogin(email, password);
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).json({ success: false, message: error.message });
-    next(error);
-  }
-};
+export async function login(req, res) {
+  res.json({ success: true, data: await authService.login(req.body) });
+}
 
-/**
- * GET /api/auth/me
- * Get the current logged-in user's profile.
- */
-export const getMe = async (req, res, next) => {
-  try {
-    const user = await authService.getUserProfile(req.user._id);
-    return res.json({ success: true, data: user });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * POST /api/auth/logout
- * Logout user (frontend deletes the token).
- */
-export const logout = (req, res) => {
-  return res.json({ success: true, data: { message: 'Logged out successfully' } });
-};
+export function me(req, res) {
+  res.json({ success: true, data: req.user.toPublic() });
+}

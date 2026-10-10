@@ -1,30 +1,30 @@
 @import 'tailwindcss';
 
-/* Design tokens: a luminous white -> violet (#63e) backdrop with dark
-   plum-to-black "glass" surfaces on top of it. */
+/* Design tokens: a luminous white -> soft lavender backdrop with
+   refined plum-charcoal surfaces on top of it. */
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand-50: #f4f0ff;
-  --color-brand-100: #e9e1ff;
-  --color-brand-200: #d3c4ff;
-  --color-brand-300: #b69dff;
-  --color-brand-400: #9368ff;
-  --color-brand-500: #6633ee;
-  --color-brand-600: #5a27d8;
-  --color-brand-700: #4a1eb4;
-  --color-brand-800: #3b1a8c;
-  --color-brand-900: #281363;
+  --color-brand-50: #f7f2ff;
+  --color-brand-100: #efe7ff;
+  --color-brand-200: #dccbff;
+  --color-brand-300: #c5a9ff;
+  --color-brand-400: #a67dff;
+  --color-brand-500: #7c4dff;
+  --color-brand-600: #6939ea;
+  --color-brand-700: #532fd0;
+  --color-brand-800: #3f27a9;
+  --color-brand-900: #291a62;
 
-  --color-plum-700: #4c2169;
-  --color-plum-800: #381953;
-  --color-plum-900: #22102f;
+  --color-plum-700: #4d246f;
+  --color-plum-800: #3a1d5d;
+  --color-plum-900: #1f1133;
 
-  --color-ink-700: #2a2233;
-  --color-ink-800: #1b1522;
-  --color-ink-900: #120e17;
-  --color-ink-950: #0b0910;
+  --color-ink-700: #3a2e46;
+  --color-ink-800: #201827;
+  --color-ink-900: #110d17;
+  --color-ink-950: #09060d;
 
   --animate-fade-up: fade-up 0.5s ease-out both;
   --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
@@ -49,24 +49,47 @@
       opacity: 0;
     }
   }
+  @keyframes hero-float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(-6deg);
+    }
+    50% {
+      transform: translateY(-10px) rotate(-4deg);
+    }
+  }
 }
 
-/* Dark glass surface used by the auth card, panels and the navbar. */
+.hero-cutout {
+  animation: hero-float 6s ease-in-out infinite;
+  clip-path: polygon(13% 0%, 87% 3%, 100% 19%, 94% 78%, 78% 100%, 20% 95%, 0% 67%, 5% 18%);
+  mix-blend-mode: multiply;
+  filter: saturate(0.88) contrast(1.04);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 9%, black 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 9%, black 86%, transparent 100%);
+}
+
+.hero-cutout[src*='1521737711867'] {
+  animation-delay: -2.2s;
+}
+
+/* Premium dark glass surfaces with a richer, more defined depth. */
 @utility surface-dark {
-  background: linear-gradient(180deg, rgb(62 27 92 / 0.94) 0%, rgb(34 16 52 / 0.96) 42%, rgb(13 10 19 / 0.98) 100%);
-  border: 1px solid rgb(255 255 255 / 0.09);
+  background: linear-gradient(180deg, rgba(57, 36, 72, 0.98) 0%, rgba(34, 26, 43, 0.99) 42%, rgba(18, 15, 23, 1) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.13);
   box-shadow:
-    0 30px 60px -20px rgb(40 12 80 / 0.55),
-    inset 0 1px 0 rgb(255 255 255 / 0.06);
+    0 26px 58px -22px rgba(57, 39, 88, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(18px);
 }
 
 /* Flatter dark surface for dense content (lists, transcripts). */
 @utility surface-ink {
-  background: linear-gradient(180deg, rgb(28 20 38 / 0.96), rgb(13 10 19 / 0.97));
-  border: 1px solid rgb(255 255 255 / 0.08);
-  box-shadow: 0 24px 48px -24px rgb(40 12 80 / 0.5);
-  backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgba(20, 15, 29, 0.98), rgba(10, 8, 15, 0.99));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px -22px rgba(53, 24, 98, 0.7);
+  backdrop-filter: blur(14px);
 }
 
 /* Type scale - one family (Inter, optical sizing) with a small set of sizes
@@ -115,6 +138,9 @@
   body {
     @apply min-h-screen bg-white font-sans text-ink-950 antialiased;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(174, 145, 255, 0.16), transparent 34%),
+      linear-gradient(180deg, #ffffff 0%, #faf8ff 42%, #f0eaff 100%);
   }
   h1,
   h2,
@@ -125,7 +151,7 @@
     text-wrap: pretty;
   }
   ::selection {
-    background: rgb(102 51 238 / 0.35);
+    background: rgb(124 77 255 / 0.28);
   }
   :focus-visible {
     outline: 2px solid var(--color-brand-400);

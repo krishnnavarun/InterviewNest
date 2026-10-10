@@ -45,7 +45,16 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout
+      headerAction={
+        <>
+          New to InterviewNest?{' '}
+          <Link to="/signup" className="font-semibold text-ink-950 hover:text-brand-600">
+            Create an account
+          </Link>
+        </>
+      }
+    >
       <AuthCard
         title="Welcome Back"
         subtitle="Sign in to continue to InterviewNest"

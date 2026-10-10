@@ -3,8 +3,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { PublicOnly, RequireAuth } from '@/components/layout/RouteGuards';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageLoader } from '@/components/ui/spinner';
-import LoginPage from '@/pages/LoginPage';
-import SignupPage from '@/pages/SignupPage';
 import LandingPage from '@/pages/LandingPage';
 
 // Heavier pages are code-split so the public pages load fast.
@@ -15,6 +13,7 @@ const ReportPage = lazy(() => import('@/pages/ReportPage'));
 const HistoryPage = lazy(() => import('@/pages/HistoryPage'));
 const PracticePage = lazy(() => import('@/pages/PracticePage'));
 const CoachPage = lazy(() => import('@/pages/CoachPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 
 export default function App() {
   return (
@@ -23,8 +22,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
 
         <Route element={<PublicOnly />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LandingPage initialAuthMode="login" />} />
+          <Route path="/signup" element={<LandingPage initialAuthMode="signup" />} />
         </Route>
 
         <Route element={<RequireAuth />}>
@@ -35,6 +34,7 @@ export default function App() {
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/coach" element={<CoachPage />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
           {/* The interview room is full-screen, without the navbar. */}
           <Route path="/interview/:id" element={<InterviewPage />} />

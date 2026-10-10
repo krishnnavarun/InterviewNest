@@ -7,7 +7,7 @@ export const RadialBackground = ({ className }) => {
     <div
       aria-hidden="true"
       className={cn(
-        'absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_10%,#fff_40%,#63e_100%)]',
+        'absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(120%_110%_at_50%_0%,#ffffff_38%,#f6f2ff_63%,#c9b5ff_100%)]',
         className
       )}
     />

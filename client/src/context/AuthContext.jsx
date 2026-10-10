@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, tokenStore, unwrap } from '@/lib/api';
+import { profileApi } from '@/lib/services';
 
 const AuthContext = createContext(null);
 
@@ -43,6 +44,11 @@ export function AuthProvider({ children }) {
         startSession(await unwrap(api.post('/auth/register', { name, email, password }))),
       loginWithGoogle: async (accessToken) =>
         startSession(await unwrap(api.post('/auth/google', { accessToken }))),
+      updateProfile: async (payload) => {
+        const updated = await profileApi.update(payload);
+        setUser(updated);
+        return updated;
+      },
       logout,
     }),
     [user, loading, startSession, logout]

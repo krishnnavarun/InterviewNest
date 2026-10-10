@@ -62,7 +62,16 @@ export default function SignupPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout
+      headerAction={
+        <>
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-ink-950 hover:text-brand-600">
+            Sign in
+          </Link>
+        </>
+      }
+    >
       <AuthCard
         title="Create your account"
         subtitle="Start practising with your AI interviewer"

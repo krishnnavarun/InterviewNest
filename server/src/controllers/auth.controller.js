@@ -16,6 +16,23 @@ export const GoogleBody = z.object({
   accessToken: z.string().min(10).max(4096),
 });
 
+const optionalUrl = z.union([z.literal(''), z.url().max(2048)]).default('');
+
+export const ProfileBody = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(60),
+  profile: z.object({
+    headline: z.string().trim().max(120).default(''),
+    location: z.string().trim().max(120).default(''),
+    bio: z.string().trim().max(500).default(''),
+    links: z.object({
+      github: optionalUrl,
+      linkedin: optionalUrl,
+      leetcode: optionalUrl,
+      portfolio: optionalUrl,
+    }).default({}),
+  }).default({}),
+});
+
 export async function google(req, res) {
   res.json({ success: true, data: await authService.loginWithGoogle(req.body.accessToken) });
 }
@@ -29,5 +46,12 @@ export async function login(req, res) {
 }
 
 export function me(req, res) {
+  res.json({ success: true, data: req.user.toPublic() });
+}
+
+export async function updateProfile(req, res) {
+  req.user.name = req.body.name;
+  req.user.profile = req.body.profile;
+  await req.user.save();
   res.json({ success: true, data: req.user.toPublic() });
 }

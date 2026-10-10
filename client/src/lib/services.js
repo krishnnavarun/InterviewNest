@@ -1,6 +1,10 @@
 // All API calls in one place.
 import { api, unwrap } from './api';
 
+export const profileApi = {
+  update: (payload) => unwrap(api.patch('/auth/profile', payload)),
+};
+
 export const resumeApi = {
   get: () => unwrap(api.get('/resume')),
   upload: (file) => {

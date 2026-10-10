@@ -16,6 +16,7 @@ router.post('/auth/register', authLimiter, validate(auth.RegisterBody), auth.reg
 router.post('/auth/login', authLimiter, validate(auth.LoginBody), auth.login);
 router.post('/auth/google', authLimiter, validate(auth.GoogleBody), auth.google);
 router.get('/auth/me', requireAuth, auth.me);
+router.patch('/auth/profile', requireAuth, validate(auth.ProfileBody), auth.updateProfile);
 
 // Resume + job description analysis
 router.get('/resume', requireAuth, resume.getResume);

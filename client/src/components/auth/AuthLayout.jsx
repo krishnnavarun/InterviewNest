@@ -23,11 +23,13 @@ const HIGHLIGHTS = [
 
 export function Logo({ className = '' }) {
   return (
-    <Link to="/" className={`inline-flex items-center gap-2.5 font-bold tracking-tight ${className}`}>
-      <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-b from-plum-700 to-ink-950 text-white shadow-lg shadow-brand-900/30">
-        I
+    <Link to="/" className={`inline-flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
+      <span className="grid size-8 place-items-center rounded-xl bg-zinc-950 text-white text-xs font-black shadow-md">
+        in
       </span>
-      <span className="text-lg">InterviewNest</span>
+      <span className="text-lg font-bold">
+        interviewnest<span className="text-emerald-500">.</span>
+      </span>
     </Link>
   );
 }

@@ -16,7 +16,21 @@ export const GoogleBody = z.object({
   accessToken: z.string().min(10).max(4096),
 });
 
-const optionalUrl = z.union([z.literal(''), z.url().max(2048)]).default('');
+// Sanitizes and prepends https:// if missing, accepting handles or full URLs gracefully
+const sanitizeUrl = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const optionalUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .transform(sanitizeUrl)
+  .default('');
 
 export const ProfileBody = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(60),

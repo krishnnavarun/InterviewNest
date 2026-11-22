@@ -16,9 +16,19 @@ app.set('trust proxy', 1); // behind Vercel's proxy: use the real client IP for 
 app.use(helmet());
 app.use(
   cors({
-    origin: clientOrigins,
-    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      if (clientOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
 app.use(express.json({ limit: '1mb' }));

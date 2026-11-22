@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Dumbbell, History, LayoutDashboard, LogOut, MessagesSquare, Plus } from 'lucide-react';
 import { Logo } from '@/components/auth/AuthLayout';
-import { Button } from '@/components/ui/button';
 import { motion } from '@/components/ui/motion';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -19,15 +18,15 @@ export function AppShell() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-white text-ink-950">
-      <header className="sticky top-0 z-30 bg-[#111217] print:hidden">
+    <div className="min-h-screen bg-[#fbfaf8] text-zinc-950 antialiased selection:bg-zinc-900 selection:text-white">
+      <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-[#fbfaf8]/90 backdrop-blur-xl print:hidden">
         <nav
           aria-label="Main"
-          className="mx-auto flex h-16 w-full items-center justify-between gap-3 border-b border-white/10 px-4 text-white sm:px-8 lg:px-10"
+          className="mx-auto flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-8 lg:px-10"
         >
-          <Logo className="text-white [&>span:last-child]:hidden lg:[&>span:last-child]:inline" />
+          <Logo className="text-zinc-950 [&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
 
-          <ul className="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.02] p-1">
+          <ul className="flex items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-100/80 p-1">
             {NAV.map(({ to, label, icon: Icon }) => {
               const active = location.pathname.startsWith(to);
               return (
@@ -36,14 +35,14 @@ export function AppShell() {
                     to={to}
                     aria-label={label}
                     className={cn(
-                      'relative flex items-center gap-2 rounded-full px-2.5 py-2 text-sm font-medium transition-all sm:px-3',
-                      active ? 'text-white' : 'text-white/60 hover:text-white'
+                      'relative flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors',
+                      active ? 'text-zinc-950 font-semibold' : 'text-zinc-600 hover:text-zinc-950'
                     )}
                   >
                     {active && (
                       <motion.span
                         layoutId="nav-active"
-                        className="absolute inset-0 rounded-full bg-white/10 ring-1 ring-white/10"
+                        className="absolute inset-0 rounded-full bg-white shadow-sm ring-1 ring-zinc-950/5"
                         transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                       />
                     )}
@@ -55,24 +54,32 @@ export function AppShell() {
             })}
           </ul>
 
-          <div className="flex items-center gap-1.5">
-            <Button size="sm" variant="light" onClick={() => navigate('/interview/new')} aria-label="New interview">
-              <Plus className="size-4" />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/interview/new')}
+              aria-label="New interview"
+              className="group inline-flex items-center gap-2 rounded-full bg-zinc-950 pl-3.5 pr-1.5 py-1.5 text-xs sm:text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800"
+            >
               <span className="hidden sm:inline">New interview</span>
-            </Button>
+              <span className="grid size-6 place-items-center rounded-full bg-white/20 text-white transition group-hover:scale-105">
+                <Plus className="size-3.5" />
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => navigate('/profile')}
               title={user?.email}
               aria-label="Open profile"
-              className="hidden size-9 cursor-pointer place-items-center rounded-full border border-white/15 bg-gradient-to-br from-white/15 to-white/5 text-sm font-semibold shadow-inner shadow-white/10 transition hover:border-brand-300/60 hover:bg-white/15 lg:grid"
+              className="hidden size-8 sm:size-9 cursor-pointer place-items-center rounded-full border border-zinc-200 bg-white text-xs sm:text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 lg:grid"
             >
-              {user?.name?.[0]?.toUpperCase()}
+              {user?.name?.[0]?.toUpperCase() || 'U'}
             </button>
             <button
               onClick={logout}
               aria-label="Log out"
-              className="grid size-9 cursor-pointer place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+              title="Log out"
+              className="grid size-8 sm:size-9 cursor-pointer place-items-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-950"
             >
               <LogOut className="size-4" />
             </button>
@@ -80,9 +87,9 @@ export function AppShell() {
         </nav>
       </header>
 
-      <main className="min-h-[calc(100vh-4rem)] w-full bg-white px-4 pt-8 pb-16 sm:px-8 lg:px-10">
+      <main className="min-h-[calc(100vh-4rem)] w-full bg-[#fbfaf8] px-4 pt-8 pb-16 sm:px-8 lg:px-10">
         <div className="mx-auto w-full max-w-7xl">
-        <Outlet />
+          <Outlet />
         </div>
       </main>
     </div>

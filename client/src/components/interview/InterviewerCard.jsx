@@ -21,18 +21,18 @@ export function InterviewerCard({ status, turn, voiceOn, onToggleVoice, onReplay
         <span className={cn('relative grid shrink-0 place-items-center', compact ? 'size-12' : 'size-24')}>
           {animated && (
             <>
-              <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand-400/40" />
-              <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand-400/30 [animation-delay:0.5s]" />
+              <span className="absolute -inset-1 animate-pulse-ring rounded-full bg-brand-400/40" />
+              <span className="absolute -inset-1 animate-pulse-ring rounded-full bg-brand-400/30 [animation-delay:0.5s]" />
             </>
           )}
-          <span
+          <img
+            src="/natalie-avatar.jpg"
+            alt="Natalie · AI Interviewer"
             className={cn(
-              'relative grid size-full place-items-center rounded-full border border-white/15 bg-gradient-to-b from-brand-400/60 to-plum-900 font-semibold',
-              compact ? 'text-lg' : 'text-3xl'
+              'relative size-full rounded-full object-cover border-2 shadow-xl transition-all duration-300',
+              animated ? 'border-brand-400 ring-4 ring-brand-400/30' : 'border-white/20'
             )}
-          >
-            N
-          </span>
+          />
         </span>
         <div>
           <p className={cn('font-semibold', !compact && 'text-lg')}>Natalie</p>

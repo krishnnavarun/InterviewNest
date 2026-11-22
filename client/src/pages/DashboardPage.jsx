@@ -11,17 +11,15 @@ import {
   FileText,
   Gauge,
   History,
-  MessageCircle,
   Mic,
   PlayCircle,
+  Sparkles,
   Target,
   TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Panel, PanelHeader } from '@/components/ui/panel';
 import { PageSkeleton } from '@/components/ui/skeleton';
 import { Page, Stagger, StaggerItem } from '@/components/ui/motion';
-import { Badge } from '@/components/ui/badge';
 import { ScoreTrendChart } from '@/components/charts/ScoreTrendChart';
 import { DimensionBars } from '@/components/charts/DimensionBars';
 import { useAuth } from '@/context/AuthContext';
@@ -33,11 +31,15 @@ import { DIMENSIONS } from '@/constants/interview';
 const STEPS = [
   { icon: FileText, title: 'Bring your story', text: 'Upload a resume so prompts reflect your real experience.' },
   { icon: Target, title: 'Choose your target', text: 'Pick a role and difficulty that match your next opportunity.' },
-  { icon: Mic, title: 'Have the conversation', text: 'Answer by voice or text while the interviewer adapts.' },
+  { icon: Mic, title: 'Have the conversation', text: 'Answer by voice or text while Natalie adapts in real time.' },
 ];
 
 function StatCard({ children }) {
-  return <div className="rounded-2xl border border-ink-950/10 bg-white p-5 shadow-[0_12px_30px_-24px_rgba(27,16,47,0.8)]">{children}</div>;
+  return (
+    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm transition hover:shadow-md">
+      {children}
+    </div>
+  );
 }
 
 function ProgressStat({ label, value, suffix, delta, icon: Icon }) {
@@ -45,15 +47,19 @@ function ProgressStat({ label, value, suffix, delta, icon: Icon }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-ink-700">{label}</p>
-        <Icon className="size-5 text-brand-600" aria-hidden="true" />
+        <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{label}</p>
+        <span className="grid size-8 place-items-center rounded-xl bg-zinc-100 text-zinc-700">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-ink-950">
+      <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-950">
         {value ?? '-'}
-        {value !== null && value !== undefined && suffix && <span className="ml-1 text-base font-semibold text-ink-700">{suffix}</span>}
+        {value !== null && value !== undefined && suffix && (
+          <span className="ml-1 text-sm font-semibold text-zinc-400">{suffix}</span>
+        )}
       </p>
       {typeof delta === 'number' && delta !== 0 && (
-        <p className={`mt-1.5 text-sm font-semibold ${improving ? 'text-emerald-700' : 'text-red-600'}`}>
+        <p className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2 py-0.5 ${improving ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
           {improving ? '+' : ''}{delta} over last 5
         </p>
       )}
@@ -78,181 +84,232 @@ export default function DashboardPage() {
 
   if (!data) return <PageSkeleton label="Loading your dashboard..." />;
 
-  const { stats, series, dimensionAverages, weakAreas, usage, inProgress } = data;
+  const { stats, series, dimensionAverages, weakAreas, inProgress } = data;
   const isNew = stats.completed === 0;
   const dimensionItems = Object.entries(dimensionAverages).map(([id, value]) => ({ id, label: DIMENSIONS[id], value }));
   const latest = series.at(-1);
   const first = firstName(user?.name) || 'there';
 
   return (
-    <Page className="space-y-7">
-      <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-eyebrow text-brand-600">{greeting()}</p>
-          <h1 className="mt-2 text-display max-w-2xl text-ink-950">{first}, ready to practise?</h1>
-          <p className="mt-3 max-w-xl text-base leading-relaxed text-ink-700">
-            Build sharper answers through realistic practice, then use your feedback to decide what to rehearse next.
-          </p>
-        </div>
-        <Button variant="ink" size="lg" className="shrink-0" onClick={() => navigate('/interview/new')}>
-          Start new interview <ArrowRight className="size-4" />
-        </Button>
-      </section>
-
-      {inProgress && (
-        <section className="flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-brand-200 bg-brand-50 p-5 text-ink-950 sm:p-6">
-          <div className="flex items-center gap-4">
-            <span className="grid size-12 place-items-center rounded-xl bg-brand-600 text-white">
-              <PlayCircle className="size-6" />
-            </span>
-            <div>
-              <p className="font-semibold">Your interview is waiting</p>
-              <p className="mt-1 text-sm text-ink-700">
-                {inProgress.roleTitle} · {inProgress.difficultyLabel} · {inProgress.progress} topics covered
+    <Page className="space-y-8">
+      {/* Top Welcome & Natalie Hero Card */}
+      <section className="relative overflow-hidden rounded-[28px] border border-zinc-200/90 bg-white p-6 shadow-sm sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-5">
+            <div className="relative shrink-0">
+              <img
+                src="/natalie-avatar.jpg"
+                alt="Natalie"
+                className="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-sm"
+              />
+              <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-white ring-2 ring-white">
+                <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+                <Sparkles className="size-3 text-emerald-600" />
+                <span>AI Interviewer · Natalie</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950">
+                {greeting()}, {first}! Ready to practise?
+              </h1>
+              <p className="max-w-xl text-sm leading-relaxed text-zinc-600">
+                {isNew
+                  ? 'A focused 15-minute rehearsal gives you a benchmark, evidence-grounded feedback, and targeted areas to sharpen.'
+                  : latest
+                    ? `Your latest rehearsal scored ${latest.overall}/100. Let's build your depth on the next round.`
+                    : 'Targeted practice with evidence-backed feedback helps you speak with authority in every interview.'}
               </p>
             </div>
           </div>
-          <Button variant="ink" onClick={() => navigate(`/interview/${inProgress.id}`)}>
-            Resume interview <ArrowRight className="size-4" />
-          </Button>
-        </section>
-      )}
 
-      <section className="overflow-hidden rounded-[26px] bg-gradient-to-br from-plum-800 via-plum-900 to-ink-950 p-6 text-white shadow-[0_24px_55px_-36px_rgba(40,20,67,0.9)] sm:p-8">
-        <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
-          <div className="max-w-2xl">
-            <Badge tone="brand">{isNew ? 'Your first step' : 'Keep your momentum'}</Badge>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-              {isNew ? 'Make your first interview count.' : latest ? `Your latest score was ${latest.overall}/100.` : 'Your next good answer is one rehearsal away.'}
-            </h2>
-            <p className="mt-3 max-w-xl text-base leading-relaxed text-white/75">
-              {isNew
-                ? 'A focused 15-minute rehearsal gives you a baseline, evidence-backed feedback, and a clear next move.'
-                : 'Use your latest feedback to practise one skill at a time. Consistency matters more than getting everything perfect.'}
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            {inProgress ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/interview/${inProgress.id}`)}
+                className="group inline-flex items-center gap-3 rounded-full bg-emerald-600 pl-4 pr-1.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+              >
+                <span>Resume interview</span>
+                <span className="grid size-7 place-items-center rounded-full bg-white/20 text-white transition group-hover:scale-105">
+                  <PlayCircle className="size-4" />
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate('/interview/new')}
+                className="group inline-flex items-center gap-3 rounded-full bg-zinc-950 pl-4 pr-1.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+              >
+                <span>Start new interview</span>
+                <span className="grid size-7 place-items-center rounded-full bg-white/20 text-white transition group-hover:scale-105">
+                  <ArrowRight className="size-4" />
+                </span>
+              </button>
+            )}
+            <Link
+              to="/history"
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
+            >
+              <History className="size-4" />
+              <span>History</span>
+            </Link>
           </div>
-          {!isNew && latest && (
-            <div className="flex items-center gap-4 rounded-2xl border border-white/15 bg-white/[0.08] px-5 py-4">
-              <span className="grid size-12 place-items-center rounded-xl bg-brand-500/25 text-brand-200">
-                <TrendingUp className="size-6" />
-              </span>
-              <div>
-                <p className="text-3xl font-bold leading-none">{latest.overall}<span className="ml-1 text-base font-medium text-white/55">/100</span></p>
-                <p className="mt-1 text-sm text-white/65">latest interview score</p>
-              </div>
-            </div>
-          )}
         </div>
 
-        {isNew ? (
-          <>
-            <ol className="mt-8 grid gap-3 md:grid-cols-3">
+        {/* Steps for new users */}
+        {isNew && (
+          <div className="mt-8 border-t border-zinc-100 pt-6">
+            <p className="text-xs font-semibold tracking-wider text-zinc-400 uppercase">How it works</p>
+            <ol className="mt-4 grid gap-3 md:grid-cols-3">
               {STEPS.map(({ icon: Icon, title, text }, index) => (
-                <li key={title} className="rounded-2xl border border-white/15 bg-white/[0.08] p-5">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-xl bg-white text-ink-950"><Icon className="size-5" /></span>
-                    <span className="text-xs font-bold tracking-[0.12em] text-white/55">0{index + 1}</span>
+                <li key={title} className="rounded-2xl border border-zinc-100 bg-zinc-50/60 p-4 transition hover:bg-zinc-50">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid size-8 place-items-center rounded-xl bg-white text-zinc-900 shadow-sm border border-zinc-200/60">
+                      <Icon className="size-4 text-emerald-600" />
+                    </span>
+                    <span className="text-xs font-bold text-zinc-400">0{index + 1}</span>
                   </div>
-                  <p className="mt-5 font-semibold">{title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-white/65">{text}</p>
+                  <p className="mt-3 text-sm font-semibold text-zinc-900">{title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{text}</p>
                 </li>
               ))}
             </ol>
-            <Button variant="light" size="lg" className="mt-7" onClick={() => navigate('/interview/new')}>
-              Start my first interview <ArrowRight className="size-4" />
-            </Button>
-          </>
-        ) : (
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button variant="light" size="lg" onClick={() => navigate('/interview/new')}>Practise again <ArrowRight className="size-4" /></Button>
-            <Button variant="outline" size="lg" onClick={() => navigate('/history')}>Review feedback <History className="size-4" /></Button>
           </div>
         )}
       </section>
 
+      {/* Progress Stats */}
       {!isNew && (
         <>
           <section>
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
-                <p className="text-eyebrow text-brand-600">Your progress</p>
-                <h2 className="text-title mt-1 text-ink-950">A clearer view of your growth</h2>
+                <p className="text-xs font-semibold tracking-wider text-emerald-600 uppercase">Your progress</p>
+                <h2 className="mt-1 text-lg font-bold tracking-tight text-zinc-950">A clearer view of your growth</h2>
               </div>
-              <Link to="/history" className="hidden text-sm font-semibold text-brand-700 hover:text-brand-900 sm:inline-flex sm:items-center sm:gap-1">View history <ArrowRight className="size-4" /></Link>
+              <Link to="/history" className="hidden text-xs font-semibold text-zinc-600 hover:text-zinc-950 sm:inline-flex sm:items-center sm:gap-1">
+                View history <ArrowRight className="size-3.5" />
+              </Link>
             </div>
             <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StaggerItem><StatCard><ProgressStat label="Interviews completed" value={stats.completed} icon={BarChart3} /></StatCard></StaggerItem>
-              <StaggerItem><StatCard><ProgressStat label="Average score" value={stats.averageScore} suffix="/100" icon={Gauge} /></StatCard></StaggerItem>
-              <StaggerItem><StatCard><ProgressStat label="Best score" value={stats.bestScore} suffix="/100" icon={Award} /></StatCard></StaggerItem>
-              <StaggerItem><StatCard><ProgressStat label="Recent trend" value={stats.lastScore} suffix="/100" delta={stats.trend} icon={TrendingUp} /></StatCard></StaggerItem>
+              <StaggerItem>
+                <StatCard>
+                  <ProgressStat label="Interviews completed" value={stats.completed} icon={BarChart3} />
+                </StatCard>
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard>
+                  <ProgressStat label="Average score" value={stats.averageScore} suffix="/100" icon={Gauge} />
+                </StatCard>
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard>
+                  <ProgressStat label="Best score" value={stats.bestScore} suffix="/100" icon={Award} />
+                </StatCard>
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard>
+                  <ProgressStat label="Recent trend" value={stats.lastScore} suffix="/100" delta={stats.trend} icon={TrendingUp} />
+                </StatCard>
+              </StaggerItem>
             </Stagger>
           </section>
 
+          {/* Charts Row */}
           <section className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.85fr)]">
-            <Panel className="min-w-0 border border-white/10 p-5 sm:p-6">
-              <PanelHeader title="Score trend" description="Your completed interviews over time" />
-              <div className="mt-5"><ScoreTrendChart points={series} /></div>
-            </Panel>
-            <Panel className="p-5 sm:p-6">
-              <PanelHeader title="Skill breakdown" description="Average across your last 5 interviews" />
+            <div className="min-w-0 rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-950">Score trend</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Your completed interviews over time</p>
+                </div>
+              </div>
+              <div className="mt-5">
+                <ScoreTrendChart points={series} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-950">Skill breakdown</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Average across your last 5 interviews</p>
+                </div>
+              </div>
               <DimensionBars className="mt-6" items={dimensionItems} />
-            </Panel>
+            </div>
           </section>
 
+          {/* Next Focus & Recent Interviews */}
           <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-            <Panel tone="plum" className="p-5 sm:p-6">
-              <PanelHeader title="Your next focus" description="Small practice, targeted improvement" />
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-950">Your next focus</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Targeted practice for maximum improvement</p>
+                </div>
+              </div>
               {weakAreas.length ? (
                 <ul className="mt-5 space-y-3">
                   {weakAreas.slice(0, 3).map((area) => (
-                    <li key={area.dimension} className="flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/[0.08] p-4">
-                      <span className="flex items-center gap-2 text-sm font-semibold"><Crosshair className="size-4 text-brand-200" />{area.label}</span>
-                      <span className="text-sm font-semibold text-white/70">{area.average}/100</span>
+                    <li key={area.dimension} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3.5">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                        <Crosshair className="size-4 text-emerald-600" />
+                        {area.label}
+                      </span>
+                      <span className="text-sm font-bold text-zinc-700">{area.average}/100</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <div className="mt-5 rounded-xl border border-white/15 bg-white/[0.08] p-4 text-sm leading-relaxed text-white/75">
-                  <CheckCircle2 className="mb-2 size-5 text-emerald-300" />
-                  Your skills are trending evenly. Try an advanced interview to stretch your range.
+                <div className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-4 text-xs leading-relaxed text-emerald-950">
+                  <CheckCircle2 className="mb-2 size-5 text-emerald-600" />
+                  Your skills are trending evenly. Try an advanced interview to stretch your depth.
                 </div>
               )}
-              <Button variant="light" className="mt-5 w-full" onClick={() => navigate('/practice')}><Dumbbell className="size-4" /> Open practice drills</Button>
-            </Panel>
+              <button
+                type="button"
+                onClick={() => navigate('/practice')}
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50 hover:border-zinc-300"
+              >
+                <Dumbbell className="size-4" /> Open practice drills
+              </button>
+            </div>
 
-            <Panel className="p-5 sm:p-6">
-              <PanelHeader title="Recent interviews" description="Open a report to revisit your evidence and feedback" action={<Link to="/history" className="text-sm font-semibold text-white/75 hover:text-white">View all</Link>} />
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-950">Recent interviews</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Open a report to revisit evidence and feedback</p>
+                </div>
+                <Link to="/history" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950">
+                  View all
+                </Link>
+              </div>
               {series.length ? (
-                <ul className="mt-4 divide-y divide-white/10">
+                <ul className="mt-4 divide-y divide-zinc-100">
                   {[...series].reverse().slice(0, 5).map((item) => (
                     <li key={item.id}>
-                      <Link to={`/interview/${item.id}/report`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-white/[0.06]">
+                      <Link to={`/interview/${item.id}/report`} className="flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-zinc-50">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-white">{item.roleTitle}</p>
-                          <p className="mt-1 text-sm text-white/60">{item.difficultyLabel} · {timeAgo(item.date)}</p>
+                          <p className="truncate font-semibold text-sm text-zinc-950">{item.roleTitle}</p>
+                          <p className="mt-0.5 text-xs text-zinc-500">{item.difficultyLabel} · {timeAgo(item.date)}</p>
                         </div>
-                        <span className={`text-xl font-bold tabular-nums ${SCORE_TEXT[scoreTone(item.overall)]}`}>{item.overall}</span>
+                        <span className={`text-base font-bold tabular-nums ${SCORE_TEXT[scoreTone(item.overall)]}`}>
+                          {item.overall}
+                        </span>
                       </Link>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-5 text-sm text-white/65">Your completed interviews will appear here.</p>
+                <p className="mt-5 text-xs text-zinc-500">Your completed interviews will appear here.</p>
               )}
-            </Panel>
+            </div>
           </section>
         </>
-      )}
-
-      {usage && (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-ink-950/10 pt-5 text-sm text-ink-700">
-          <span className="font-semibold text-ink-950">Today</span>
-          <span>{usage.interviewsStarted}/{usage.interviewLimit} interviews</span>
-          <span aria-hidden="true">·</span>
-          <span>{usage.aiCalls} AI calls</span>
-          <span aria-hidden="true">·</span>
-          <span>{usage.tokens.toLocaleString()} tokens</span>
-        </div>
       )}
     </Page>
   );

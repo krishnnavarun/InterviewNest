@@ -49,28 +49,6 @@
       opacity: 0;
     }
   }
-  @keyframes hero-float {
-    0%,
-    100% {
-      transform: translateY(0) rotate(-6deg);
-    }
-    50% {
-      transform: translateY(-10px) rotate(-4deg);
-    }
-  }
-}
-
-.hero-cutout {
-  animation: hero-float 6s ease-in-out infinite;
-  clip-path: polygon(13% 0%, 87% 3%, 100% 19%, 94% 78%, 78% 100%, 20% 95%, 0% 67%, 5% 18%);
-  mix-blend-mode: multiply;
-  filter: saturate(0.88) contrast(1.04);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 9%, black 86%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 9%, black 86%, transparent 100%);
-}
-
-.hero-cutout[src*='1521737711867'] {
-  animation-delay: -2.2s;
 }
 
 /* Premium dark glass surfaces with a richer, more defined depth. */

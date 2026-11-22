@@ -57,37 +57,37 @@ export default function HistoryPage() {
         </Button>
       </div>
 
-      <Panel className="p-2 sm:p-3">
+      <Panel className="p-3 sm:p-5">
         {data.items.length === 0 ? (
           <div className="p-10 text-center">
-            <p className="font-semibold">No interviews yet</p>
-            <p className="mt-1 text-sm text-white/55">Your completed interviews and reports will appear here.</p>
+            <p className="font-semibold text-zinc-900">No interviews yet</p>
+            <p className="mt-1 text-sm text-zinc-500">Your completed interviews and reports will appear here.</p>
           </div>
         ) : (
-          <Stagger as="ul" className="divide-y divide-white/[0.06]" step={0.04}>
+          <Stagger as="ul" className="divide-y divide-zinc-100" step={0.04}>
             {data.items.map((item) => {
               const inProgress = item.status === 'in_progress';
               const href = inProgress ? `/interview/${item.id}` : `/interview/${item.id}/report`;
               return (
-                <StaggerItem as="li" key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03] sm:px-4">
+                <StaggerItem as="li" key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-zinc-50 sm:px-4">
                   <Link to={href} className="flex min-w-0 flex-1 items-center gap-4">
                     <span className={`w-12 shrink-0 text-center text-2xl font-semibold tabular-nums ${SCORE_TEXT[scoreTone(item.overallScore)]}`}>
-                      {inProgress ? <PlayCircle className="mx-auto size-6 text-brand-300" /> : item.overallScore ?? '-'}
+                      {inProgress ? <PlayCircle className="mx-auto size-6 text-emerald-600" /> : item.overallScore ?? '-'}
                     </span>
                     <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-medium">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
                         {item.roleTitle}
                         <Badge>{item.difficultyLabel}</Badge>
                         {inProgress && <Badge tone="brand">In progress</Badge>}
                       </p>
-                      <p className="mt-0.5 truncate text-sm text-white/50">{item.headline ?? `Started ${formatDate(item.createdAt)}`}</p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">{item.headline ?? `Started ${formatDate(item.createdAt)}`}</p>
                     </div>
                   </Link>
-                  <span className="hidden text-xs text-white/40 sm:block">{formatDate(item.completedAt ?? item.createdAt)}</span>
+                  <span className="hidden text-xs text-zinc-400 sm:block">{formatDate(item.completedAt ?? item.createdAt)}</span>
                   <button
                     onClick={() => setToDelete(item)}
                     aria-label={`Delete ${item.roleTitle} interview`}
-                    className="grid size-9 cursor-pointer place-items-center rounded-lg text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                    className="grid size-8 cursor-pointer place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 className="size-4" />
                   </button>

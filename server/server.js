@@ -8,11 +8,9 @@ assertServerEnv();
 // pay for the Atlas handshake. Requests still retry through connectDB() if this fails.
 connectDB().catch((error) => console.error(`[db] initial connection failed: ${error.message}`));
 
-// On Vercel the exported app is invoked as a serverless function; locally we listen.
-if (!process.env.VERCEL) {
-  app.listen(env.PORT, () => {
-    console.log(`InterviewNest API listening on http://localhost:${env.PORT} (model: ${env.GEMINI_MODEL})`);
-  });
-}
+// Start listening on configured port
+app.listen(env.PORT, () => {
+  console.log(`InterviewNest API listening on http://localhost:${env.PORT} (model: ${env.GEMINI_MODEL})`);
+});
 
 export default app;

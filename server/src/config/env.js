@@ -29,7 +29,7 @@ const EnvSchema = z.object({
 
   CLIENT_ORIGINS: z
     .string()
-    .default('http://localhost:5173,https://interview-nest-two.vercel.app'),
+    .default('http://localhost:5173,http://localhost:5174,http://localhost:3000'),
 
   // Cost guardrails (per user, per UTC day)
   DAILY_INTERVIEW_LIMIT: z.coerce.number().int().positive().default(10),

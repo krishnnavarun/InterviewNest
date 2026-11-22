@@ -36,7 +36,7 @@ function CoachText({ text, onCite }) {
         <button
           key={`${index}-${number}`}
           onClick={() => onCite(Number(number))}
-          className="mx-0.5 inline-grid h-5 min-w-5 cursor-pointer place-items-center rounded-md bg-brand-500/25 px-1 align-text-top text-[11px] font-semibold text-brand-100 hover:bg-brand-500/45"
+          className="mx-0.5 inline-grid h-5 min-w-5 cursor-pointer place-items-center rounded-md bg-emerald-50 px-1 align-text-top text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
           aria-label={`Source ${number.trim()}`}
         >
           {number.trim()}
@@ -46,7 +46,7 @@ function CoachText({ text, onCite }) {
 
   const blocks = text.split(/\n{2,}/);
   return (
-    <div className="text-body space-y-3">
+    <div className="space-y-3 text-sm leading-relaxed text-zinc-800">
       {blocks.map((block, index) => {
         const lines = block.split('\n').filter(Boolean);
         if (lines.every((line) => /^\s*[-*•]\s+/.test(line))) {
@@ -73,23 +73,24 @@ function splitLabel(label = '') {
 
 function SourceCard({ source, highlight }) {
   const { title, context } = splitLabel(source.label);
-  // The stored excerpt repeats the context line; drop it so the preview adds information.
   const excerpt = context && source.excerpt?.startsWith(context) ? source.excerpt.slice(context.length).replace(/^[.\s]+/, '') : source.excerpt;
   return (
     <li
       id={`source-${source.number}`}
       className={cn(
         'rounded-xl border p-3 transition-colors',
-        highlight === source.number ? 'border-brand-300/70 bg-brand-500/15' : 'border-white/15 bg-white/[0.05]'
+        highlight === source.number ? 'border-emerald-500 bg-emerald-50/80' : 'border-zinc-200 bg-zinc-50/70 hover:bg-zinc-50'
       )}
     >
       <Link to={`/interview/${source.interviewId}/report`} className="group block">
-        <p className="text-caption flex items-center gap-2 font-semibold text-white/85">
-          <span className="grid size-5 shrink-0 place-items-center rounded-md bg-white/10 text-[11px]">{source.number}</span>
+        <p className="flex items-center gap-2 text-xs font-semibold text-zinc-950">
+          <span className="grid size-5 shrink-0 place-items-center rounded-md bg-zinc-200/80 text-[11px] font-bold text-zinc-800">
+            {source.number}
+          </span>
           <span className="truncate group-hover:underline">{title.charAt(0).toUpperCase() + title.slice(1)}</span>
         </p>
-        {context && <p className="text-caption mt-0.5 truncate pl-7 text-white/40">{context}</p>}
-        {excerpt && <p className="text-caption mt-1.5 line-clamp-2 text-white/55">{excerpt}</p>}
+        {context && <p className="mt-0.5 truncate pl-7 text-[11px] text-zinc-400">{context}</p>}
+        {excerpt && <p className="mt-1.5 line-clamp-2 text-xs text-zinc-600 pl-7">{excerpt}</p>}
       </Link>
     </li>
   );
@@ -99,13 +100,14 @@ function Sources({ sources, highlight }) {
   const [showAll, setShowAll] = useState(false);
   if (!sources?.length) return null;
   const cited = sources.filter((source) => source.cited);
-  // Show what the answer actually relied on; other retrieved passages stay one click away.
   const primary = cited.length ? cited : sources;
   const extra = sources.filter((source) => !primary.includes(source));
   const visible = showAll ? [...primary, ...extra] : primary;
   return (
-    <div className="mt-4">
-      <p className="text-eyebrow mb-2 text-white/40">{cited.length ? 'Cited from your interviews' : 'Retrieved from your interviews'}</p>
+    <div className="mt-4 border-t border-zinc-100 pt-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        {cited.length ? 'Cited from your interviews' : 'Retrieved from your interviews'}
+      </p>
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>li]:min-w-0">
         {visible.map((source) => (
           <SourceCard key={source.number} source={source} highlight={highlight} />
@@ -115,7 +117,7 @@ function Sources({ sources, highlight }) {
         <button
           type="button"
           onClick={() => setShowAll((value) => !value)}
-          className="text-caption mt-2 cursor-pointer text-white/45 hover:text-white"
+          className="mt-2 cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-950 transition"
         >
           {showAll ? 'Hide other retrieved passages' : `+${extra.length} more retrieved but not cited`}
         </button>
@@ -129,40 +131,53 @@ export default function CoachPage() {
   const [messages, setMessages] = useState(loadChat);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [completed, setCompleted] = useState(null);
   const [highlight, setHighlight] = useState(null);
+  const [completed, setCompleted] = useState(null);
   const endRef = useRef(null);
 
   useEffect(() => {
     progressApi
       .get()
-      .then((progress) => setCompleted(progress.stats.completed))
+      .then((data) => setCompleted(data.stats.completed))
       .catch(() => setCompleted(0));
   }, []);
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {
-      /* storage unavailable */
+      // private mode / quota exceeded
     }
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages]);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, busy]);
 
-  const ask = async (question) => {
-    const text = question.trim();
+  const ask = async (prompt) => {
+    const text = prompt.trim();
     if (!text || busy) return;
-    const history = messages.map(({ role, content }) => ({ role, content }));
-    setMessages((current) => [...current, { role: 'user', content: text }]);
     setInput('');
+    const userMessage = { role: 'user', content: text };
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setBusy(true);
+
     try {
-      const result = await coachingApi.askCoach(text, history);
-      setMessages((current) => [...current, { role: 'coach', content: result.answer, sources: result.sources, followUps: result.followUps }]);
+      const response = await coachingApi.chat(
+        nextMessages.map(({ role, content }) => ({ role, content }))
+      );
+      setMessages((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: response.content,
+          sources: response.sources ?? [],
+          followUps: response.followUps ?? [],
+        },
+      ]);
     } catch (error) {
       toast.error(errorMessage(error));
-      setMessages((current) => current.slice(0, -1));
-      setInput(text);
     } finally {
       setBusy(false);
     }
@@ -180,33 +195,33 @@ export default function CoachPage() {
     <Page className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-eyebrow text-brand-600">AI Coach</p>
-          <h1 className="text-title mt-1">Ask about your progress</h1>
-          <p className="text-body mt-1 text-ink-700">Answers are retrieved from your own interviews and cite their sources.</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">AI Coach</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-950">Ask about your progress</h1>
+          <p className="mt-1 text-sm text-zinc-600">Answers are retrieved from your own interviews and cite their sources.</p>
         </div>
         {messages.length > 0 && (
-          <Button variant="ghost" size="sm" className="text-ink-700 hover:bg-ink-950/5 hover:text-ink-950" onClick={() => setMessages([])}>
+          <Button variant="ghost" size="sm" className="text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950" onClick={() => setMessages([])}>
             <RotateCcw className="size-3.5" /> New chat
           </Button>
         )}
       </div>
 
-      <Panel className="flex min-h-[560px] flex-col overflow-hidden">
+      <Panel className="flex min-h-[560px] flex-col overflow-hidden shadow-sm">
         <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-6" aria-live="polite">
           {messages.length === 0 && (
             <div className="grid h-full min-h-80 place-items-center text-center">
               <div className="max-w-md">
-                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-white text-ink-950">
-                  <MessagesSquare className="size-6" />
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-950">
+                  <MessagesSquare className="size-5 text-emerald-600" />
                 </span>
-                <p className="text-heading mt-5">Your coach knows your interviews</p>
-                <p className="text-body mt-1.5 text-white/55">
+                <p className="mt-4 text-base font-bold text-zinc-950">Your coach knows your interviews</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
                   {completed > 0
-                    ? `It has read ${completed} completed interview${completed === 1 ? '' : 's'} - your answers, scores and feedback.`
-                    : 'Complete an interview first so the coach has something to learn from.'}
+                    ? `It has read ${completed} completed interview${completed === 1 ? '' : 's'} - your answers, scores, and feedback.`
+                    : 'Complete an interview first so the coach has personalized data to learn from.'}
                 </p>
                 {completed === 0 && (
-                  <Button variant="light" className="mt-5" onClick={() => navigate('/interview/new')}>
+                  <Button variant="brand" className="mt-5" onClick={() => navigate('/interview/new')}>
                     Start an interview
                   </Button>
                 )}
@@ -222,7 +237,7 @@ export default function CoachPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, ease: EASE }}
-                  className="ml-auto max-w-[80%] rounded-2xl rounded-tr-md bg-white px-4 py-3 text-sm text-ink-950"
+                  className="ml-auto max-w-[80%] rounded-2xl rounded-tr-md bg-zinc-950 px-4 py-3 text-sm text-white shadow-xs"
                 >
                   {message.content}
                 </motion.div>
@@ -234,19 +249,19 @@ export default function CoachPage() {
                   transition={{ duration: 0.35, ease: EASE }}
                   className="flex gap-3"
                 >
-                  <span className="mt-1 grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-b from-brand-400/60 to-plum-900">
+                  <span className="mt-1 grid size-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-800">
                     <Sparkles className="size-4" />
                   </span>
-                  <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-white/85">
+                  <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-zinc-200/80 bg-white p-4 text-zinc-950 shadow-xs">
                     <CoachText text={message.content} onCite={cite} />
                     <Sources sources={message.sources} highlight={index === messages.length - 1 ? highlight : null} />
                     {index === messages.length - 1 && message.followUps?.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
                         {message.followUps.map((followUp) => (
                           <button
                             key={followUp}
                             onClick={() => ask(followUp)}
-                            className="cursor-pointer rounded-full border border-white/15 px-3 py-1.5 text-caption text-white/75 transition-colors hover:bg-white/[0.08] hover:text-white"
+                            className="cursor-pointer rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950"
                           >
                             {followUp}
                           </button>
@@ -260,13 +275,13 @@ export default function CoachPage() {
           </AnimatePresence>
 
           {busy && (
-            <div className="flex items-center gap-3 text-sm text-white/55" role="status">
-              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-b from-brand-400/60 to-plum-900">
-                <BookOpenCheck className="size-4" />
+            <div className="flex items-center gap-3 text-xs text-zinc-500">
+              <span className="grid size-7 place-items-center rounded-full bg-zinc-100 text-zinc-700">
+                <BookOpenCheck className="size-3.5" />
               </span>
               <span className="flex gap-1">
                 {[0, 1, 2].map((dot) => (
-                  <span key={dot} className="size-1.5 animate-bounce rounded-full bg-white/60" style={{ animationDelay: `${dot * 120}ms` }} />
+                  <span key={dot} className="size-1.5 animate-bounce rounded-full bg-zinc-400" style={{ animationDelay: `${dot * 120}ms` }} />
                 ))}
               </span>
               Searching your interviews...
@@ -275,14 +290,14 @@ export default function CoachPage() {
           <div ref={endRef} />
         </div>
 
-        <div className="border-t border-white/[0.08] p-4 sm:p-5">
+        <div className="border-t border-zinc-200/80 bg-white p-4 sm:p-5">
           {messages.length === 0 && completed > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
               {SUGGESTIONS.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => ask(suggestion)}
-                  className="cursor-pointer rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-caption text-white/75 transition-colors hover:bg-white/[0.08] hover:text-white"
+                  className="cursor-pointer rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950"
                 >
                   {suggestion}
                 </button>
@@ -311,15 +326,15 @@ export default function CoachPage() {
               }}
               rows={1}
               maxLength={1000}
-              placeholder="Ask your coach..."
-              className="text-body max-h-40 min-h-12 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white placeholder:text-white/35 focus:border-brand-300/50 focus:outline-none"
+              placeholder="Ask your coach anything about your interview history or skills..."
+              className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 outline-none transition"
             />
-            <Button type="submit" variant="light" size="icon" aria-label="Send" disabled={busy || !input.trim()}>
+            <Button type="submit" variant="brand" size="icon" aria-label="Send" disabled={busy || !input.trim()}>
               <ArrowUp className="size-4" />
             </Button>
           </form>
-          <p className="text-caption mt-2 flex items-center gap-1.5 text-white/35">
-            <FileText className="size-3" /> The coach only uses your interview data and says so when it doesn&apos;t know.
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-400">
+            <FileText className="size-3" /> The coach only uses your own interview data and cites exact sources.
           </p>
         </div>
       </Panel>

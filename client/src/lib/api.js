@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export const API_URL =
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://interview-nest-server.vercel.app/api');
+  (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 
 const TOKEN_KEY = 'interviewnest.token';
 

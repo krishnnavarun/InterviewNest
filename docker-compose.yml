@@ -1,0 +1,24 @@
+services:
+  # 1. Backend API Service
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: interviewnest-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+
+  # 2. Frontend React + Nginx Service
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: interviewnest-client
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
